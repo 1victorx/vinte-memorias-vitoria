@@ -6,6 +6,7 @@ import { chromium } from "playwright-core";
 const edgePath =
   "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
 const baseUrl = process.env.TEST_BASE_URL ?? "http://localhost:3000";
+const requireFeedback = process.env.REQUIRE_FEEDBACK === "true";
 const outputDir = new URL("../test-results/", import.meta.url);
 
 await mkdir(outputDir, { recursive: true });
@@ -86,6 +87,16 @@ for (const size of sizes) {
   await page.getByRole("button", { name: /abrir a carta/i }).click();
   await page.getByRole("button", { name: /abrir minha carta/i }).click();
   await page.getByRole("textbox", { name: /sua mensagem/i }).waitFor();
+  if (requireFeedback) {
+    const feedbackHost = await page
+      .locator(".response-section form")
+      .evaluate((form) => new URL(form.action).hostname);
+    assert.equal(
+      feedbackHost,
+      "formsubmit.co",
+      `${size.name}: o envio por e-mail precisa estar configurado`,
+    );
+  }
   await page.waitForTimeout(400);
 
   await page.screenshot({
