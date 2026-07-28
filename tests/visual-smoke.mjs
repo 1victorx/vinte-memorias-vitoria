@@ -37,6 +37,19 @@ for (const size of sizes) {
       pageErrors.push(message.text());
     }
   });
+  page.on("response", (response) => {
+    if (response.status() >= 400) {
+      pageErrors.push(`${response.status()} ${response.url()}`);
+    }
+  });
+  page.on("requestfailed", (request) => {
+    if (request.failure()?.errorText === "net::ERR_ABORTED") {
+      return;
+    }
+    pageErrors.push(
+      `${request.failure()?.errorText ?? "request failed"} ${request.url()}`,
+    );
+  });
 
   await page.goto(baseUrl, { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: /20 memórias/i }).waitFor();
