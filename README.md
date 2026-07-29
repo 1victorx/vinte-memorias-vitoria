@@ -10,12 +10,13 @@ romântica inspirada em interfaces antigas, e é publicado gratuitamente pelo Gi
 ## Funcionalidades
 
 - Área de trabalho retrô com janelas sobrepostas, livremente arrastáveis nos dois eixos e dock de aplicativos.
-- Barras de título movidas pelo mouse ou pelas setas do teclado.
-- Visual soft-retro, com curvas assimétricas, cartões orgânicos e detalhes florais sem perder a textura pixelada.
+- Barras de título movidas pelo mouse ou pelas setas do teclado, com maximização e restauração.
+- Janelas redimensionáveis livremente pelo canto inferior direito.
+- Visual soft-retro legível em zoom de 100%, com cantos moderados, detalhes florais e textura pixelada.
 - 46 fotografias organizadas cronologicamente.
 - 20 músicas otimizadas para carregamento pela internet.
 - Janela independente para escolher livremente qualquer uma das 20 músicas.
-- CDs personalizados com fotografias reais de cada memória.
+- CDs personalizados com fotografias reais de cada memória e um CD grande giratório no tocador.
 - Botão especial para a música **No Escuro**.
 - Mensagem escondida em cada memória.
 - Janela de fotos e textos com índice cronológico dos 20 capítulos.

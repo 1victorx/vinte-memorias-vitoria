@@ -33,6 +33,8 @@ function formatTime(seconds: number) {
 function WindowBar({
   title,
   onClose,
+  maximized,
+  onToggleMaximize,
   onDragStart,
   onDragMove,
   onDragEnd,
@@ -40,6 +42,8 @@ function WindowBar({
 }: {
   title: string;
   onClose: () => void;
+  maximized: boolean;
+  onToggleMaximize: () => void;
   onDragStart: (event: ReactPointerEvent<HTMLElement>) => void;
   onDragMove: (event: ReactPointerEvent<HTMLElement>) => void;
   onDragEnd: (event: ReactPointerEvent<HTMLElement>) => void;
@@ -50,6 +54,7 @@ function WindowBar({
       className="window-bar"
       tabIndex={0}
       aria-label={`Mover janela ${title}`}
+      onDoubleClick={onToggleMaximize}
       onPointerDown={onDragStart}
       onPointerMove={onDragMove}
       onPointerUp={onDragEnd}
@@ -66,14 +71,28 @@ function WindowBar({
     >
       <span className="window-grip" aria-hidden="true" />
       <strong>{title}</strong>
-      <button
-        type="button"
-        onPointerDown={(event) => event.stopPropagation()}
-        onClick={onClose}
-        aria-label={`Fechar ${title}`}
-      >
-        ×
-      </button>
+      <span className="window-actions">
+        <button
+          type="button"
+          onPointerDown={(event) => event.stopPropagation()}
+          onDoubleClick={(event) => event.stopPropagation()}
+          onClick={onToggleMaximize}
+          aria-label={`${maximized ? "Restaurar" : "Maximizar"} ${title}`}
+          title={maximized ? "Restaurar janela" : "Maximizar janela"}
+        >
+          {maximized ? "❐" : "□"}
+        </button>
+        <button
+          type="button"
+          onPointerDown={(event) => event.stopPropagation()}
+          onDoubleClick={(event) => event.stopPropagation()}
+          onClick={onClose}
+          aria-label={`Fechar ${title}`}
+          title="Fechar janela"
+        >
+          ×
+        </button>
+      </span>
     </header>
   );
 }
@@ -101,6 +120,13 @@ export default function MemoryExperience() {
     archive: null,
     letter: null,
     response: null,
+  });
+  const [maximized, setMaximized] = useState<Record<WindowName, boolean>>({
+    music: false,
+    memory: false,
+    archive: false,
+    letter: false,
+    response: false,
   });
   const dragState = useRef<DragState | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -140,6 +166,19 @@ export default function MemoryExperience() {
   }
 
   function windowStyle(name: WindowName) {
+    if (maximized[name]) {
+      return {
+        zIndex: layers[name],
+        position: "fixed" as const,
+        left: 6,
+        top: 36,
+        right: 6,
+        bottom: 6,
+        width: "auto",
+        height: "auto",
+        transform: "none",
+      };
+    }
     const point = positions[name];
     if (!point) return { zIndex: layers[name] };
     return {
@@ -168,7 +207,7 @@ export default function MemoryExperience() {
   }
 
   function startDrag(name: WindowName, event: ReactPointerEvent<HTMLElement>) {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || maximized[name]) return;
     event.preventDefault();
     const windowElement = event.currentTarget.closest(".os-window");
     if (!(windowElement instanceof HTMLElement)) return;
@@ -201,6 +240,7 @@ export default function MemoryExperience() {
   }
 
   function nudgeWindow(name: WindowName, x: number, y: number, bar: HTMLElement) {
+    if (maximized[name]) return;
     const windowElement = bar.closest(".os-window");
     if (!(windowElement instanceof HTMLElement)) return;
     const rect = windowElement.getBoundingClientRect();
@@ -216,6 +256,11 @@ export default function MemoryExperience() {
 
   function close(name: WindowName) {
     setVisible((current) => ({ ...current, [name]: false }));
+  }
+
+  function toggleMaximize(name: WindowName) {
+    front(name);
+    setMaximized((current) => ({ ...current, [name]: !current[name] }));
   }
 
   function selectMemory(index: number) {
@@ -293,8 +338,8 @@ export default function MemoryExperience() {
           <div className="desktop-stamp" aria-hidden="true"><span>V + V</span><small>DESDE 2025</small></div>
 
           {visible.music && (
-            <section className="os-window music-window" style={windowStyle("music")} onPointerDown={() => front("music")} aria-label="Seletor de músicas">
-              <WindowBar title="MIXTAPES" onClose={() => close("music")} onDragStart={(event) => startDrag("music", event)} onDragMove={dragWindow} onDragEnd={endDrag} onNudge={(x, y, bar) => nudgeWindow("music", x, y, bar)} />
+            <section className={`os-window music-window${maximized.music ? " is-maximized" : ""}`} style={windowStyle("music")} onPointerDown={() => front("music")} aria-label="Seletor de músicas">
+              <WindowBar title="MIXTAPES" onClose={() => close("music")} maximized={maximized.music} onToggleMaximize={() => toggleMaximize("music")} onDragStart={(event) => startDrag("music", event)} onDragMove={dragWindow} onDragEnd={endDrag} onNudge={(x, y, bar) => nudgeWindow("music", x, y, bar)} />
               <div className="window-toolbar"><span>ARQUIVO</span><span>20 FAIXAS</span><span>VOL {Math.round(volume * 100)}%</span></div>
               <div className={`disc-grid${playing ? " is-playing" : ""}`}>
                 {memories.map((memory, index) => (
@@ -306,9 +351,15 @@ export default function MemoryExperience() {
                 ))}
               </div>
               <div className="mini-player">
-                <div className="now-playing">
-                  <span className={`equalizer${playing ? " is-playing" : ""}`} aria-hidden="true"><i /><i /><i /><i /></span>
-                  <div><small>{playing ? "TOCANDO AGORA" : "FAIXA SELECIONADA"}</small><strong>{selectedSong.title}</strong><span>{selectedSong.artist}</span></div>
+                <div className="player-showcase">
+                  <div className="now-playing">
+                    <span className={`equalizer${playing ? " is-playing" : ""}`} aria-hidden="true"><i /><i /><i /><i /></span>
+                    <div><small>{playing ? "TOCANDO AGORA" : "FAIXA SELECIONADA"}</small><strong>{selectedSong.title}</strong><span>{selectedSong.artist}</span></div>
+                  </div>
+                  <span className={`large-disc${playing ? " is-spinning" : ""}`} aria-hidden="true">
+                    <Image src={asset(memories[selectedSongIndex].photos[0])} alt="" fill sizes="150px" unoptimized />
+                    <i />
+                  </span>
                 </div>
                 <div className="player-progress"><span>{formatTime(currentTime)}</span><input type="range" min="0" max="100" value={progress} onChange={(event) => seek(Number(event.target.value))} aria-label="Posição da música" /><span>{formatTime(duration)}</span></div>
                 <div className="player-controls">
@@ -320,8 +371,8 @@ export default function MemoryExperience() {
           )}
 
           {visible.memory && (
-            <article className="os-window memory-window" style={windowStyle("memory")} onPointerDown={() => front("memory")} aria-label={`Memória ${activeMemory.id}: ${activeMemory.title}`}>
-              <WindowBar title={`MEMÓRIA_${activeMemory.id.toString().padStart(2, "0")}.TXT`} onClose={() => close("memory")} onDragStart={(event) => startDrag("memory", event)} onDragMove={dragWindow} onDragEnd={endDrag} onNudge={(x, y, bar) => nudgeWindow("memory", x, y, bar)} />
+            <article className={`os-window memory-window${maximized.memory ? " is-maximized" : ""}`} style={windowStyle("memory")} onPointerDown={() => front("memory")} aria-label={`Memória ${activeMemory.id}: ${activeMemory.title}`}>
+              <WindowBar title={`MEMÓRIA_${activeMemory.id.toString().padStart(2, "0")}.TXT`} onClose={() => close("memory")} maximized={maximized.memory} onToggleMaximize={() => toggleMaximize("memory")} onDragStart={(event) => startDrag("memory", event)} onDragMove={dragWindow} onDragEnd={endDrag} onNudge={(x, y, bar) => nudgeWindow("memory", x, y, bar)} />
               <div className="memory-toolbar"><button type="button" onClick={() => moveMemory(-1)}>← ANTERIOR</button><span>{activeMemory.id.toString().padStart(2, "0")} / 20</span><button type="button" onClick={() => moveMemory(1)}>PRÓXIMA →</button></div>
               <div className="memory-workspace">
                 <section className="memory-document">
@@ -351,8 +402,8 @@ export default function MemoryExperience() {
           )}
 
           {visible.archive && (
-            <aside className="os-window archive-window" style={windowStyle("archive")} onPointerDown={() => front("archive")} aria-label="Arquivo das vinte memórias">
-              <WindowBar title="FOTOS & TEXTOS" onClose={() => close("archive")} onDragStart={(event) => startDrag("archive", event)} onDragMove={dragWindow} onDragEnd={endDrag} onNudge={(x, y, bar) => nudgeWindow("archive", x, y, bar)} />
+            <aside className={`os-window archive-window${maximized.archive ? " is-maximized" : ""}`} style={windowStyle("archive")} onPointerDown={() => front("archive")} aria-label="Arquivo das vinte memórias">
+              <WindowBar title="FOTOS & TEXTOS" onClose={() => close("archive")} maximized={maximized.archive} onToggleMaximize={() => toggleMaximize("archive")} onDragStart={(event) => startDrag("archive", event)} onDragMove={dragWindow} onDragEnd={endDrag} onNudge={(x, y, bar) => nudgeWindow("archive", x, y, bar)} />
               <div className="archive-header"><span>ÍNDICE CRONOLÓGICO</span><strong>VITÓRIA ♡ VICTOR</strong></div>
               <ol className="archive-list">
                 {memories.map((memory, index) => <li key={memory.id}><button type="button" className={activeMemoryIndex === index ? "is-active" : ""} onClick={() => selectMemory(index)}><span className="archive-thumb"><Image src={asset(memory.photos[0])} alt="" fill sizes="54px" unoptimized /></span><span><small>{memory.date}</small><strong>{memory.id.toString().padStart(2, "0")}. {memory.title}</strong></span></button></li>)}
@@ -361,8 +412,8 @@ export default function MemoryExperience() {
           )}
 
           {visible.letter && (
-            <section className="os-window letter-window" style={windowStyle("letter")} onPointerDown={() => front("letter")} aria-label="Carta para Vitória">
-              <WindowBar title="CARTA_FINAL.DOC" onClose={() => close("letter")} onDragStart={(event) => startDrag("letter", event)} onDragMove={dragWindow} onDragEnd={endDrag} onNudge={(x, y, bar) => nudgeWindow("letter", x, y, bar)} />
+            <section className={`os-window letter-window${maximized.letter ? " is-maximized" : ""}`} style={windowStyle("letter")} onPointerDown={() => front("letter")} aria-label="Carta para Vitória">
+              <WindowBar title="CARTA_FINAL.DOC" onClose={() => close("letter")} maximized={maximized.letter} onToggleMaximize={() => toggleMaximize("letter")} onDragStart={(event) => startDrag("letter", event)} onDragMove={dragWindow} onDragEnd={endDrag} onNudge={(x, y, bar) => nudgeWindow("letter", x, y, bar)} />
               <div className="letter-layout">
                 <figure className="letter-polaroid"><Image src={asset("/media/photos/memory-20-01.jpg")} alt="Vitória e Victor em uma lembrança juntos" fill sizes="280px" unoptimized /><figcaption>para sempre nós</figcaption></figure>
                 <article className="letter-paper">
@@ -378,8 +429,8 @@ export default function MemoryExperience() {
           )}
 
           {visible.response && (
-            <section className="os-window response-window" style={windowStyle("response")} onPointerDown={() => front("response")} aria-label="Responder ao presente">
-              <WindowBar title="CAIXA_DE_MENSAGEM" onClose={() => close("response")} onDragStart={(event) => startDrag("response", event)} onDragMove={dragWindow} onDragEnd={endDrag} onNudge={(x, y, bar) => nudgeWindow("response", x, y, bar)} />
+            <section className={`os-window response-window${maximized.response ? " is-maximized" : ""}`} style={windowStyle("response")} onPointerDown={() => front("response")} aria-label="Responder ao presente">
+              <WindowBar title="CAIXA_DE_MENSAGEM" onClose={() => close("response")} maximized={maximized.response} onToggleMaximize={() => toggleMaximize("response")} onDragStart={(event) => startDrag("response", event)} onDragMove={dragWindow} onDragEnd={endDrag} onNudge={(x, y, bar) => nudgeWindow("response", x, y, bar)} />
               <form action={feedbackEndpoint || undefined} method="POST" onSubmit={saveMessageLocally}>
                 <input type="hidden" name="_subject" value="Vitória respondeu ao presente de 20 memórias" />
                 <input type="hidden" name="_template" value="table" />
