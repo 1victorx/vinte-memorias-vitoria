@@ -11,7 +11,7 @@ romântica inspirada em interfaces antigas, e é publicado gratuitamente pelo Gi
 
 - Área de trabalho retrô com janelas sobrepostas, livremente arrastáveis nos dois eixos e dock de aplicativos.
 - Barras de título movidas pelo mouse ou pelas setas do teclado.
-- Visual mais pixelado, com sombras rígidas, grades e controles inspirados em interfaces antigas.
+- Visual soft-retro, com curvas assimétricas, cartões orgânicos e detalhes florais sem perder a textura pixelada.
 - 46 fotografias organizadas cronologicamente.
 - 20 músicas otimizadas para carregamento pela internet.
 - Janela independente para escolher livremente qualquer uma das 20 músicas.

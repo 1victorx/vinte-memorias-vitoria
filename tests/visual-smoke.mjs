@@ -34,6 +34,8 @@ for (const size of sizes) {
   assert.equal(await page.locator(".disc-item").count(), 20, `${size.name}: seletor precisa ter 20 músicas`);
   assert.equal(await page.locator(".archive-list button").count(), 20, `${size.name}: arquivo precisa ter 20 memórias`);
   assert.equal(await page.locator(".disc-item .compact-disc img").count(), 20, `${size.name}: CDs personalizados precisam exibir 20 capas`);
+  const cornerRadius = await page.locator(".memory-window").evaluate((element) => getComputedStyle(element).borderTopLeftRadius);
+  assert.notEqual(cornerRadius, "0px", `${size.name}: janelas precisam manter cantos orgânicos`);
 
   const memoryWindow = page.locator(".memory-window");
   const beforeDrag = await memoryWindow.boundingBox();
