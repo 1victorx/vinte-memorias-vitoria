@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { calendarMemories } from "../data/calendar-memories";
 import { memories } from "../data/memories";
 
 type WindowName = "music" | "memory" | "archive" | "letter" | "response" | "date";
@@ -132,6 +133,7 @@ export default function MemoryExperience() {
   const [dateRequestSaved, setDateRequestSaved] = useState(false);
   const [dateStep, setDateStep] = useState<"calendar" | "confirm" | "details">("calendar");
   const [selectedDate, setSelectedDate] = useState("");
+  const [calendarPreviewDate, setCalendarPreviewDate] = useState<string | null>(null);
   const [calendarMonth, setCalendarMonth] = useState({ year: 2026, month: 7 });
   const [clock, setClock] = useState("--:--");
   const [visible, setVisible] = useState<Record<WindowName, boolean>>({
@@ -175,6 +177,11 @@ export default function MemoryExperience() {
   const selectedDateLabel = selectedDate
     ? new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" }).format(new Date(`${selectedDate}T12:00:00`))
     : "";
+  const calendarPreviewMemory = calendarPreviewDate ? calendarMemories[calendarPreviewDate] : undefined;
+  const calendarPreviewLabel = calendarPreviewDate
+    ? new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long", year: "numeric" }).format(new Date(`${calendarPreviewDate}T12:00:00`))
+    : "";
+  const selectedCalendarMemory = selectedDate ? calendarMemories[selectedDate] : undefined;
 
   useEffect(() => () => {
     if (welcomeTimer.current) window.clearTimeout(welcomeTimer.current);
@@ -356,6 +363,7 @@ export default function MemoryExperience() {
   }
 
   function changeCalendarMonth(offset: number) {
+    setCalendarPreviewDate(null);
     setCalendarMonth((current) => {
       const next = new Date(current.year, current.month + offset, 1);
       return { year: next.getFullYear(), month: next.getMonth() };
@@ -366,6 +374,7 @@ export default function MemoryExperience() {
     const month = String(calendarMonth.month + 1).padStart(2, "0");
     setSelectedDate(`${calendarMonth.year}-${month}-${String(day).padStart(2, "0")}`);
     setDateRequestSaved(false);
+    setCalendarPreviewDate(null);
     setDateStep("confirm");
   }
 
@@ -624,7 +633,7 @@ export default function MemoryExperience() {
               <div className="date-planner">
                 {dateStep === "calendar" && (
                   <section className="calendar-step" aria-labelledby="calendar-heading">
-                    <div className="date-intro"><span>UM CONVITE PARA NÓS DOIS</span><h2 id="calendar-heading">Quando você quer sair comigo?</h2><p>Escolha um dia no calendário. Todos os dias do mês estão disponíveis para seleção.</p></div>
+                    <div className="date-intro"><span>UM CONVITE PARA NÓS DOIS</span><h2 id="calendar-heading">Quando você quer sair comigo?</h2><p>Escolha um dia no calendário. As datas com uma flor guardam lembranças da nossa história.</p></div>
                     <div className="calendar-toolbar">
                       <button type="button" onClick={() => changeCalendarMonth(-1)} aria-label="Mês anterior">←</button>
                       <strong>{calendarTitle}</strong>
@@ -635,9 +644,35 @@ export default function MemoryExperience() {
                       {Array.from({ length: firstCalendarWeekday }, (_, index) => <span className="calendar-empty" key={`empty-${index}`} />)}
                       {Array.from({ length: daysInCalendarMonth }, (_, index) => {
                         const day = index + 1;
-                        return <button type="button" className="calendar-day" data-day={day} key={day} onClick={() => chooseDate(day)} aria-label={`Escolher dia ${day} de ${calendarTitle}`}><span>{day}</span><small>♡</small></button>;
+                        const isoDate = `${calendarMonth.year}-${String(calendarMonth.month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                        const calendarMemory = calendarMemories[isoDate];
+                        return (
+                          <button
+                            type="button"
+                            className={`calendar-day${calendarMemory ? " has-memory" : ""}`}
+                            data-day={day}
+                            data-memory-date={calendarMemory ? isoDate : undefined}
+                            key={day}
+                            title={calendarMemory?.description}
+                            onMouseEnter={() => calendarMemory && setCalendarPreviewDate(isoDate)}
+                            onMouseLeave={() => setCalendarPreviewDate((current) => current === isoDate ? null : current)}
+                            onFocus={() => calendarMemory && setCalendarPreviewDate(isoDate)}
+                            onBlur={() => setCalendarPreviewDate((current) => current === isoDate ? null : current)}
+                            onClick={() => chooseDate(day)}
+                            aria-label={`${calendarMemory ? `Memória: ${calendarMemory.description} ` : ""}Escolher dia ${day} de ${calendarTitle}`}
+                          >
+                            <span>{day}</span><small>{calendarMemory ? "✿" : "♡"}</small>
+                          </button>
+                        );
                       })}
                     </div>
+                    {calendarPreviewMemory && (
+                      <aside className="calendar-memory-preview" aria-live="polite">
+                        <span>LEMBRANÇA DE {calendarPreviewLabel}</span>
+                        <p>{calendarPreviewMemory.description}</p>
+                        <small>Clique no dia se quiser escolher esta data para o próximo encontro.</small>
+                      </aside>
+                    )}
                   </section>
                 )}
 
@@ -646,6 +681,7 @@ export default function MemoryExperience() {
                     <span className="date-heart" aria-hidden="true">♡</span>
                     <p>VOCÊ ESCOLHEU</p>
                     <strong>{selectedDateLabel}</strong>
+                    {selectedCalendarMemory && <div className="date-history"><span>NESTA DATA DA NOSSA HISTÓRIA</span><p>{selectedCalendarMemory.description}</p></div>}
                     <h2 id="date-confirm-title">Tem certeza dessa data?</h2>
                     <div className="date-actions"><button type="button" className="secondary" onClick={() => setDateStep("calendar")}>ESCOLHER OUTRA</button><button type="button" onClick={() => setDateStep("details")}>SIM, TENHO CERTEZA ♡</button></div>
                   </section>

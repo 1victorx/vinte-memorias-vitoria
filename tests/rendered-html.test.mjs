@@ -62,6 +62,22 @@ test("mantem exatamente vinte capitulos editaveis", async () => {
   assert.match(content, /memory-20\.mp3/);
 });
 
+test("cadastra todas as datas especiais no calendário", async () => {
+  const content = await readFile(
+    new URL("../app/data/calendar-memories.ts", import.meta.url),
+    "utf8",
+  );
+  const dates = [...content.matchAll(/^\s+"(\d{4}-\d{2}-\d{2})":/gm)].map(
+    (match) => match[1],
+  );
+
+  assert.equal(dates.length, 36);
+  assert.ok(new Set(dates).size === dates.length);
+  assert.ok(dates.includes("2025-06-29"));
+  assert.ok(dates.includes("2026-07-25"));
+  assert.match(content, /ficamos MUITO bem/);
+  assert.match(content, /Nosso primeiro beijo/);
+});
 test("inclui todas as fotografias e trilhas preparadas", async () => {
   const photoRoot = new URL("../public/media/photos/", import.meta.url);
   const audioRoot = new URL("../public/media/audio/", import.meta.url);

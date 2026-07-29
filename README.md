@@ -24,6 +24,7 @@ romântica inspirada em interfaces antigas, e é publicado gratuitamente pelo Gi
 - Janelas específicas para a carta final e a resposta.
 - Campo para Vitória enviar uma resposta ao Victor.
 - Janela de encontro com calendário mensal completo, confirmação da data, escolha do passeio e envio dos detalhes por e-mail.
+- 36 datas especiais de 2025 e 2026 destacadas com flores e descrições dentro do calendário.
 - Layout testado em monitores de 1280 px, 1440 px e 1920 px.
 - Navegação por teclado, foco visível e redução de movimento.
 - Imagem de compartilhamento e metadados para redes sociais.

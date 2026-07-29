@@ -857,6 +857,7 @@ input[type="range"]::-webkit-slider-thumb { border-radius: 50% 50% 42% 42%; }
   min-height: 500px;
 }
 .date-planner {
+  position: relative;
   height: calc(100% - 36px);
   overflow: auto;
   background:
@@ -1402,4 +1403,82 @@ input[type="range"]::-webkit-slider-thumb { border-radius: 50% 50% 42% 42%; }
 @media (prefers-reduced-motion: reduce) {
   .welcome-screen,
   .welcome-no { transition-duration: .01ms; }
+}
+/* Calendar memory dates */
+.calendar-day.has-memory {
+  border-color: var(--berry);
+  background:
+    radial-gradient(circle at 2px 2px, rgba(169,52,103,.08) 1px, transparent 1.5px) 0 0 / 6px 6px,
+    #fbd7e2;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.7), 2px 2px 0 rgba(169,52,103,.2);
+}
+.calendar-day.has-memory span { color: #8e2857; }
+.calendar-day.has-memory small {
+  color: #a93467;
+  font-size: 13px;
+  opacity: 1;
+  animation: calendar-memory-pulse 1.8s ease-in-out infinite;
+}
+.calendar-day.has-memory:hover,
+.calendar-day.has-memory:focus-visible {
+  background: #f3afc4;
+  transform: translateY(-2px);
+}
+.calendar-memory-preview {
+  position: absolute;
+  z-index: 30;
+  right: 18px;
+  bottom: 16px;
+  width: min(320px, calc(100% - 36px));
+  padding: 12px 14px;
+  border: 2px solid var(--soft-line);
+  border-radius: 9px 4px 9px 4px;
+  background: rgba(255,253,248,.97);
+  box-shadow: 7px 8px 0 rgba(101,42,70,.16), 0 14px 28px rgba(101,42,70,.2);
+  pointer-events: none;
+}
+.calendar-memory-preview span,
+.date-history span {
+  color: var(--berry);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+.calendar-memory-preview p {
+  margin: 6px 0;
+  font: 14px/1.35 Georgia, serif;
+}
+.calendar-memory-preview small {
+  color: #705a65;
+  font-size: 9px;
+  line-height: 1.3;
+}
+.date-history {
+  width: min(410px, 100%);
+  margin-top: 12px;
+  padding: 10px 13px;
+  border-left: 4px solid var(--berry);
+  border-radius: 4px 8px 8px 4px;
+  background: #fff;
+  box-shadow: 3px 3px 0 rgba(169,52,103,.1);
+  text-align: left;
+}
+.date-history p {
+  margin: 5px 0 0;
+  color: #4f3b45;
+  font: 13px/1.4 Georgia, serif;
+}
+.date-confirm:has(.date-history) .date-heart {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 10px;
+  font-size: 36px;
+}
+.date-confirm:has(.date-history) h2 { margin: 15px 0 13px; }
+
+@keyframes calendar-memory-pulse {
+  50% { transform: scale(1.15) rotate(4deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .calendar-day.has-memory small { animation: none; }
 }

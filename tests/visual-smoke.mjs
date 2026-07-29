@@ -123,6 +123,14 @@ for (const size of sizes) {
   const dateWindow = page.locator(".date-window");
   await dateWindow.waitFor();
   assert.equal(await dateWindow.locator(".calendar-day").count(), 31, `${size.name}: agosto precisa exibir todos os 31 dias`);
+  await dateWindow.getByRole("button", { name: /mês anterior/i }).click();
+  assert.match(await dateWindow.locator(".calendar-toolbar strong").textContent(), /julho de 2026/i, `${size.name}: calendário não navegou até julho`);
+  assert.equal(await dateWindow.locator(".calendar-day.has-memory").count(), 3, `${size.name}: julho de 2026 precisa exibir três lembranças`);
+  await dateWindow.locator('.calendar-day[data-memory-date="2026-07-25"]').hover();
+  await dateWindow.locator(".calendar-memory-preview").waitFor();
+  assert.match(await dateWindow.locator(".calendar-memory-preview").textContent(), /museu errado/i, `${size.name}: lembrança de 25 de julho não apareceu`);
+  await dateWindow.getByRole("button", { name: /próximo mês/i }).click();
+  assert.equal(await dateWindow.locator(".calendar-day").count(), 31, `${size.name}: agosto precisa continuar com todos os 31 dias`);
   await dateWindow.locator('.calendar-day[data-day="10"]').click();
   await dateWindow.getByRole("heading", { name: /tem certeza dessa data/i }).waitFor();
   assert.match(await dateWindow.textContent(), /10 de agosto de 2026/i, `${size.name}: confirmação não mostra a data escolhida`);
