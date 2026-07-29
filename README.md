@@ -9,7 +9,7 @@ romântica inspirada em interfaces antigas, e é publicado gratuitamente pelo Gi
 
 ## Funcionalidades
 
-- Área de trabalho retrô com janelas sobrepostas, arrastáveis e dock de aplicativos.
+- Área de trabalho retrô com janelas sobrepostas, livremente arrastáveis nos dois eixos e dock de aplicativos.
 - Barras de título movidas pelo mouse ou pelas setas do teclado.
 - Visual mais pixelado, com sombras rígidas, grades e controles inspirados em interfaces antigas.
 - 46 fotografias organizadas cronologicamente.

@@ -37,14 +37,25 @@ for (const size of sizes) {
 
   const memoryWindow = page.locator(".memory-window");
   const beforeDrag = await memoryWindow.boundingBox();
-  const dragBar = await memoryWindow.locator(".window-bar").boundingBox();
-  assert.ok(beforeDrag && dragBar, `${size.name}: janela principal não pôde ser medida`);
-  await page.mouse.move(dragBar.x + dragBar.width / 2, dragBar.y + dragBar.height / 2);
+  const horizontalBar = await memoryWindow.locator(".window-bar").boundingBox();
+  assert.ok(beforeDrag && horizontalBar, `${size.name}: janela principal não pôde ser medida`);
+  await page.mouse.move(horizontalBar.x + horizontalBar.width / 2, horizontalBar.y + horizontalBar.height / 2);
   await page.mouse.down();
-  await page.mouse.move(dragBar.x + dragBar.width / 2 + 55, dragBar.y + dragBar.height / 2 + 24, { steps: 5 });
+  await page.mouse.move(horizontalBar.x + horizontalBar.width / 2 + 60, horizontalBar.y + horizontalBar.height / 2, { steps: 5 });
   await page.mouse.up();
-  const afterDrag = await memoryWindow.boundingBox();
-  assert.ok(afterDrag && afterDrag.x >= beforeDrag.x + 45, `${size.name}: janela não respondeu ao arraste`);
+  const afterHorizontal = await memoryWindow.boundingBox();
+  assert.ok(afterHorizontal && afterHorizontal.x >= beforeDrag.x + 50, `${size.name}: arraste horizontal não funcionou`);
+  assert.ok(Math.abs(afterHorizontal.y - beforeDrag.y) <= 2, `${size.name}: arraste horizontal alterou o eixo vertical`);
+
+  const verticalBar = await memoryWindow.locator(".window-bar").boundingBox();
+  assert.ok(verticalBar, `${size.name}: barra ficou indisponível após movimento horizontal`);
+  await page.mouse.move(verticalBar.x + verticalBar.width / 2, verticalBar.y + verticalBar.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(verticalBar.x + verticalBar.width / 2, verticalBar.y + verticalBar.height / 2 - 35, { steps: 5 });
+  await page.mouse.up();
+  const afterVertical = await memoryWindow.boundingBox();
+  assert.ok(afterVertical && afterVertical.y <= afterHorizontal.y - 28, `${size.name}: arraste vertical não funcionou`);
+  assert.ok(Math.abs(afterVertical.x - afterHorizontal.x) <= 2, `${size.name}: arraste vertical alterou o eixo horizontal`);
   await page.screenshot({ path: fileURLToPath(new URL(`${size.name}-initial.png`, outputDir)), fullPage: false });
 
   await page.locator(".disc-item").nth(4).click();
