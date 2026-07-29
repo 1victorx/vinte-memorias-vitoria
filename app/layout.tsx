@@ -3,6 +3,7 @@ import "./globals.css";
 
 const siteUrl = "https://1victorx.github.io/vinte-memorias-vitoria/";
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+const iconBase = basePath ? siteUrl : "http://localhost:3000/";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -44,9 +45,9 @@ export const metadata: Metadata = {
     follow: true,
   },
   icons: {
-    icon: `${basePath}/favicon.png`,
-    shortcut: `${basePath}/favicon.png`,
-    apple: `${basePath}/icon-192.png`,
+    icon: `${iconBase}favicon.png`,
+    shortcut: `${iconBase}favicon.png`,
+    apple: `${iconBase}icon-192.png`,
   },
 };
 

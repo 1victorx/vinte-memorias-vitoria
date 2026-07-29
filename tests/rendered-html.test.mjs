@@ -30,7 +30,7 @@ async function render() {
   );
 }
 
-test("renderiza a abertura do presente em portugues", async () => {
+test("renderiza a area de trabalho do presente em portugues", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
@@ -39,8 +39,9 @@ test("renderiza a abertura do presente em portugues", async () => {
   assert.match(html, /<html[^>]*lang="pt-BR"/i);
   assert.match(html, /<title>20 memórias para Vitória<\/title>/i);
   assert.match(html, /20 memórias/);
-  assert.match(html, /Abrir nosso álbum/);
-  assert.match(html, /Pular para o conteúdo/);
+  assert.match(html, /VITÓRIA OS/);
+  assert.match(html, /FOTOS &amp; TEXTOS|FOTOS & TEXTOS/);
+  assert.match(html, /MIXTAPES/);
   assert.doesNotMatch(html, /Your site is taking shape|codex-preview/i);
 });
 

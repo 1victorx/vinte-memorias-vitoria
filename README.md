@@ -4,21 +4,21 @@ Presente digital de aniversário para Vitória Nicoly Santiago Fernandes:
 um álbum interativo com vinte capítulos, fotografias reais, uma música por
 memória, mensagens escondidas e uma carta de encerramento.
 
-O site foi criado com prioridade para celular, funciona também em tablets e
-computadores e é publicado gratuitamente pelo GitHub Pages.
+O site foi criado exclusivamente para computadores, como uma área de trabalho
+romântica inspirada em interfaces antigas, e é publicado gratuitamente pelo GitHub Pages.
 
 ## Funcionalidades
 
-- Abertura animada e central com acesso direto aos 20 capítulos.
+- Área de trabalho retrô com janelas sobrepostas e dock de aplicativos.
 - 46 fotografias organizadas cronologicamente.
 - 20 músicas otimizadas para carregamento pela internet.
-- Player que troca a trilha ao mudar de capítulo.
+- Janela independente para escolher livremente qualquer uma das 20 músicas.
 - Botão especial para a música **No Escuro**.
 - Mensagem escondida em cada memória.
-- Navegação anterior/próxima e menu completo de capítulos.
-- Carta final em formato de envelope.
+- Janela de fotos e textos com índice cronológico dos 20 capítulos.
+- Janelas espec�ficas para a carta final e a resposta.
 - Campo para Vitória enviar uma resposta ao Victor.
-- Layout testado em 360 px, 768 px e 1440 px.
+- Layout testado em monitores de 1280 px, 1440 px e 1920 px.
 - Navegação por teclado, foco visível e redução de movimento.
 - Imagem de compartilhamento e metadados para redes sociais.
 
@@ -42,7 +42,7 @@ presente. O envio da resposta utiliza um provedor externo gratuito.
 app/
   components/MemoryExperience.tsx  experiência interativa
   data/memories.ts                 textos, datas, músicas e fotos
-  globals.css                      identidade visual e responsividade
+  globals.css                      interface desktop e janelas retr�
 public/
   media/photos/                    46 fotos otimizadas
   media/audio/                     20 faixas otimizadas
@@ -92,7 +92,7 @@ As 20 memórias ficam em `app/data/memories.ts`. Em cada item, substitua:
 - `story`: texto definitivo da memória;
 - `secret`: mensagem escondida.
 
-A carta fica no bloco `letter-content` de
+A carta fica no bloco `letter-paper` de
 `app/components/MemoryExperience.tsx`. As fotografias e músicas já estão
 associadas a seus capítulos.
 
