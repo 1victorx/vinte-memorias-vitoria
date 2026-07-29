@@ -25,8 +25,9 @@ for (const size of sizes) {
   page.on("response", (response) => { if (response.status() >= 400) pageErrors.push(`${response.status()} ${response.url()}`); });
   page.on("requestfailed", (request) => { if (request.failure()?.errorText !== "net::ERR_ABORTED") pageErrors.push(`${request.failure()?.errorText} ${request.url()}`); });
 
-  await page.goto(baseUrl, { waitUntil: "networkidle" });
+  await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
   await page.getByRole("main", { name: /área de trabalho/i }).waitFor();
+  await page.locator('main[data-interactive="true"]').waitFor();
   assert.equal(await page.locator(".music-window").count(), 1, `${size.name}: janela de músicas ausente`);
   assert.equal(await page.locator(".memory-window").count(), 1, `${size.name}: janela de memória ausente`);
   assert.equal(await page.locator(".archive-window").count(), 1, `${size.name}: janela de arquivo ausente`);
@@ -68,7 +69,7 @@ for (const size of sizes) {
 }
 
 const compact = await browser.newPage({ viewport: { width: 900, height: 700 } });
-await compact.goto(baseUrl, { waitUntil: "networkidle" });
+await compact.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
 await compact.getByRole("heading", { name: /feito para computador/i }).waitFor();
 await compact.close();
 await browser.close();

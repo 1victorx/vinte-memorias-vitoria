@@ -259,7 +259,7 @@ export default function MemoryExperience() {
         <p>Abra o link em uma tela maior para explorar todas as janelas.</p>
       </div>
 
-      <main className="desktop" aria-label="Área de trabalho das nossas memórias">
+      <main className="desktop" data-interactive={clock !== "--:--"} aria-label="Área de trabalho das nossas memórias">
         <audio
           ref={audioRef}
           preload="metadata"
