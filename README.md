@@ -22,6 +22,7 @@ romântica inspirada em interfaces antigas, e é publicado gratuitamente pelo Gi
 - Janela de fotos e textos com índice cronológico dos 20 capítulos.
 - Janelas específicas para a carta final e a resposta.
 - Campo para Vitória enviar uma resposta ao Victor.
+- Janela de encontro com calendário mensal completo, confirmação da data, escolha do passeio e envio dos detalhes por e-mail.
 - Layout testado em monitores de 1280 px, 1440 px e 1920 px.
 - Navegação por teclado, foco visível e redução de movimento.
 - Imagem de compartilhamento e metadados para redes sociais.

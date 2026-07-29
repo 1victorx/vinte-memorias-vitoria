@@ -847,3 +847,271 @@ input[type="range"]::-webkit-slider-thumb { border-radius: 50% 50% 42% 42%; }
   .desktop-dock button { width: 98px; }
   .disc-item strong { font-size: 11px; }
 }
+/* Romantic date planner */
+.date-window {
+  top: 28px;
+  left: calc(50% - 270px);
+  width: 540px;
+  height: 555px;
+  min-width: 470px;
+  min-height: 500px;
+}
+.date-planner {
+  height: calc(100% - 36px);
+  overflow: auto;
+  background:
+    radial-gradient(circle at 2px 2px, rgba(169,52,103,.09) 1px, transparent 1.5px) 0 0 / 8px 8px,
+    linear-gradient(160deg, #fffdf8, #fff4f7 65%, #fbe5ec);
+}
+.calendar-step {
+  min-height: 100%;
+  padding: 10px 18px 12px;
+}
+.date-intro {
+  padding: 8px 12px;
+  border: 1px solid rgba(111,69,89,.45);
+  border-radius: 8px 4px 8px 4px;
+  background: rgba(255,255,255,.82);
+  box-shadow: 4px 4px 0 rgba(169,52,103,.09);
+}
+.date-intro span,
+.date-details header span {
+  color: var(--berry);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+.date-intro h2 {
+  margin: 5px 0 4px;
+  color: var(--berry);
+  font: italic 23px/1.05 Georgia, serif;
+}
+.date-intro p {
+  margin: 0;
+  color: #65525d;
+  font: 12.5px/1.3 Georgia, serif;
+}
+.calendar-toolbar {
+  display: grid;
+  height: 42px;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+  gap: 7px;
+  margin-top: 6px;
+}
+.calendar-toolbar strong {
+  font: 700 17px Georgia, serif;
+  text-align: center;
+  text-transform: none;
+}
+.calendar-toolbar button,
+.date-actions button,
+.date-details header button,
+.date-submit {
+  border: 1px solid var(--soft-line);
+  border-radius: 6px;
+  background: #f7c7d5;
+  box-shadow: 2px 2px 0 rgba(101,42,70,.16), inset 0 1px 0 white;
+  font-weight: 700;
+  cursor: pointer;
+}
+.calendar-toolbar button {
+  width: 44px;
+  height: 32px;
+  font-size: 18px;
+}
+.calendar-toolbar button:hover,
+.calendar-toolbar button:focus-visible,
+.calendar-day:hover,
+.calendar-day:focus-visible,
+.date-actions button:hover,
+.date-details header button:hover,
+.date-submit:hover { background: #efacc1; }
+.calendar-weekdays,
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+}
+.calendar-weekdays {
+  margin-bottom: 5px;
+  padding: 3px 1px;
+  border-top: 1px solid rgba(111,69,89,.35);
+  border-bottom: 1px solid rgba(111,69,89,.35);
+  color: #765765;
+  font-size: 9px;
+  font-weight: 700;
+  text-align: center;
+}
+.calendar-empty,
+.calendar-day { min-height: 48px; }
+.calendar-day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border: 1px solid rgba(111,69,89,.52);
+  border-radius: 7px 3px 7px 3px;
+  background: rgba(255,255,255,.92);
+  box-shadow: 2px 2px 0 rgba(101,42,70,.09);
+  cursor: pointer;
+}
+.calendar-day:nth-child(7n + 1),
+.calendar-day:nth-child(7n) { background: #fff0f4; }
+.calendar-day span { font: 700 15px Georgia, serif; }
+.calendar-day small {
+  color: var(--berry);
+  font-size: 10px;
+  line-height: 1;
+  opacity: .35;
+}
+.calendar-day:hover small,
+.calendar-day:focus-visible small { opacity: 1; }
+
+.date-confirm {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 34px;
+  text-align: center;
+}
+.date-heart {
+  display: grid;
+  width: 86px;
+  height: 86px;
+  place-items: center;
+  margin-bottom: 17px;
+  border: 2px solid var(--soft-line);
+  border-radius: 50%;
+  background: #f5b6c9;
+  color: white;
+  box-shadow: 7px 7px 0 rgba(169,52,103,.13);
+  font: 48px Georgia, serif;
+}
+.date-confirm > p {
+  margin: 0 0 8px;
+  color: var(--berry);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .13em;
+}
+.date-confirm > strong {
+  max-width: 410px;
+  padding: 10px 15px;
+  border: 1px dashed var(--berry);
+  border-radius: 7px 3px 7px 3px;
+  background: white;
+  font: 700 18px/1.35 Georgia, serif;
+  text-transform: none;
+}
+.date-confirm h2 {
+  margin: 22px 0 18px;
+  color: var(--berry);
+  font: italic 29px Georgia, serif;
+}
+.date-actions {
+  display: flex;
+  gap: 9px;
+}
+.date-actions button {
+  min-height: 39px;
+  padding: 8px 14px;
+  font-size: 11px;
+}
+.date-actions .secondary { background: white; }
+
+.date-details {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px 20px;
+}
+.date-details header {
+  position: relative;
+  padding: 11px 114px 11px 13px;
+  border: 1px solid rgba(111,69,89,.45);
+  border-radius: 8px 4px 8px 4px;
+  background: white;
+}
+.date-details header h2 {
+  margin: 4px 0 0;
+  color: var(--berry);
+  font: 700 17px/1.25 Georgia, serif;
+  text-transform: none;
+}
+.date-details header button {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  padding: 7px 8px;
+  background: white;
+  font-size: 9px;
+  transform: translateY(-50%);
+}
+.date-details label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: #5d4652;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .03em;
+}
+.date-details select,
+.date-details input,
+.date-details textarea {
+  width: 100%;
+  border: 1px solid var(--soft-line);
+  border-radius: 7px 3px 7px 3px;
+  background: rgba(255,255,255,.95);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 400;
+}
+.date-details select,
+.date-details input { height: 38px; padding: 0 10px; }
+.date-description { flex: 1; min-height: 105px; }
+.date-details textarea {
+  flex: 1;
+  min-height: 90px;
+  padding: 10px;
+  resize: vertical;
+  font: 13px/1.45 Georgia, serif;
+}
+.date-submit {
+  min-height: 41px;
+  padding: 9px 12px;
+  font-size: 11px;
+}
+.date-saved {
+  margin: 0;
+  color: var(--berry);
+  font-size: 10px;
+  text-align: center;
+}
+.desktop-dock .dock-date span {
+  background: #fff7f9;
+  color: var(--berry);
+  font: 700 11px Georgia, serif;
+}
+.calendar-toolbar strong::first-letter,
+.date-confirm > strong::first-letter,
+.date-details header h2::first-letter { text-transform: uppercase; }
+.os-window.is-maximized .calendar-step {
+  width: min(780px, 100%);
+  margin: 0 auto;
+}
+.os-window.is-maximized .calendar-day { min-height: 60px; }
+.os-window.is-maximized .date-details {
+  width: min(760px, 100%);
+  margin: 0 auto;
+}
+
+@media (min-width: 1100px) and (max-width: 1290px) {
+  .desktop-dock button { width: 94px; }
+}

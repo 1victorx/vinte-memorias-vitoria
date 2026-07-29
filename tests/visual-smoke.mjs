@@ -45,6 +45,7 @@ for (const size of sizes) {
   assert.ok(discArtistSize >= 9, `${size.name}: artistas dos CDs continuam pequenos`);
   assert.ok(dockLabelSize >= 11, `${size.name}: rótulos inferiores continuam pequenos`);
   assert.equal(await page.locator(".large-disc").count(), 1, `${size.name}: CD grande do tocador ausente`);
+  assert.equal(await page.locator(".desktop-dock button").count(), 7, `${size.name}: dock precisa conter a nova aba de encontro`);
 
   const memoryWindow = page.locator(".memory-window");
   const beforeDrag = await memoryWindow.boundingBox();
@@ -97,6 +98,23 @@ for (const size of sizes) {
   if (requireFeedback) {
     const feedbackHost = await page.locator(".response-window form").evaluate((form) => new URL(form.action).hostname);
     assert.equal(feedbackHost, "formsubmit.co", `${size.name}: envio por e-mail não configurado`);
+  }
+
+  await page.getByRole("button", { name: "Encontro" }).click();
+  const dateWindow = page.locator(".date-window");
+  await dateWindow.waitFor();
+  assert.equal(await dateWindow.locator(".calendar-day").count(), 31, `${size.name}: agosto precisa exibir todos os 31 dias`);
+  await dateWindow.locator('.calendar-day[data-day="10"]').click();
+  await dateWindow.getByRole("heading", { name: /tem certeza dessa data/i }).waitFor();
+  assert.match(await dateWindow.textContent(), /10 de agosto de 2026/i, `${size.name}: confirmação não mostra a data escolhida`);
+  await dateWindow.getByRole("button", { name: /sim, tenho certeza/i }).click();
+  await dateWindow.getByLabel(/onde você quer ir/i).selectOption({ label: "Restaurante" });
+  await dateWindow.getByLabel(/qual é o local/i).fill("Nosso restaurante favorito");
+  await dateWindow.getByLabel(/descreva o local/i).fill("Uma mesa tranquila para conversarmos e aproveitarmos a noite.");
+  assert.equal(await dateWindow.locator('input[name="Data escolhida"]').inputValue(), "segunda-feira, 10 de agosto de 2026", `${size.name}: formulário não preservou a data confirmada`);
+  if (requireFeedback) {
+    const dateFeedbackHost = await dateWindow.locator("form").evaluate((form) => new URL(form.action).hostname);
+    assert.equal(dateFeedbackHost, "formsubmit.co", `${size.name}: pedido de encontro não está ligado ao e-mail`);
   }
 
   await page.screenshot({ path: fileURLToPath(new URL(`${size.name}.png`, outputDir)), fullPage: false });

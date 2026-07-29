@@ -10,7 +10,7 @@ import {
 } from "react";
 import { memories } from "../data/memories";
 
-type WindowName = "music" | "memory" | "archive" | "letter" | "response";
+type WindowName = "music" | "memory" | "archive" | "letter" | "response" | "date";
 type Point = { x: number; y: number };
 type DragState = {
   name: WindowName;
@@ -107,12 +107,16 @@ export default function MemoryExperience() {
   const [volume, setVolume] = useState(0.72);
   const [secretOpen, setSecretOpen] = useState(false);
   const [savedMessage, setSavedMessage] = useState(false);
+  const [dateRequestSaved, setDateRequestSaved] = useState(false);
+  const [dateStep, setDateStep] = useState<"calendar" | "confirm" | "details">("calendar");
+  const [selectedDate, setSelectedDate] = useState("");
+  const [calendarMonth, setCalendarMonth] = useState({ year: 2026, month: 7 });
   const [clock, setClock] = useState("--:--");
   const [visible, setVisible] = useState<Record<WindowName, boolean>>({
-    music: true, memory: true, archive: true, letter: false, response: false,
+    music: true, memory: true, archive: true, letter: false, response: false, date: false,
   });
   const [layers, setLayers] = useState<Record<WindowName, number>>({
-    music: 12, memory: 14, archive: 13, letter: 15, response: 16,
+    music: 12, memory: 14, archive: 13, letter: 15, response: 16, date: 17,
   });
   const [positions, setPositions] = useState<Record<WindowName, Point | null>>({
     music: null,
@@ -120,6 +124,7 @@ export default function MemoryExperience() {
     archive: null,
     letter: null,
     response: null,
+    date: null,
   });
   const [maximized, setMaximized] = useState<Record<WindowName, boolean>>({
     music: false,
@@ -127,6 +132,7 @@ export default function MemoryExperience() {
     archive: false,
     letter: false,
     response: false,
+    date: false,
   });
   const dragState = useRef<DragState | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -134,6 +140,12 @@ export default function MemoryExperience() {
   const activeMemory = memories[activeMemoryIndex];
   const selectedSong = memories[selectedSongIndex].song;
   const progress = duration ? (currentTime / duration) * 100 : 0;
+  const daysInCalendarMonth = new Date(calendarMonth.year, calendarMonth.month + 1, 0).getDate();
+  const firstCalendarWeekday = new Date(calendarMonth.year, calendarMonth.month, 1).getDay();
+  const calendarTitle = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(new Date(calendarMonth.year, calendarMonth.month, 1));
+  const selectedDateLabel = selectedDate
+    ? new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" }).format(new Date(`${selectedDate}T12:00:00`))
+    : "";
 
   useEffect(() => {
     const update = () => setClock(new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(new Date()));
@@ -310,6 +322,34 @@ export default function MemoryExperience() {
     event.currentTarget.reset();
   }
 
+  function changeCalendarMonth(offset: number) {
+    setCalendarMonth((current) => {
+      const next = new Date(current.year, current.month + offset, 1);
+      return { year: next.getFullYear(), month: next.getMonth() };
+    });
+  }
+
+  function chooseDate(day: number) {
+    const month = String(calendarMonth.month + 1).padStart(2, "0");
+    setSelectedDate(`${calendarMonth.year}-${month}-${String(day).padStart(2, "0")}`);
+    setDateRequestSaved(false);
+    setDateStep("confirm");
+  }
+
+  function saveDateRequestLocally(event: FormEvent<HTMLFormElement>) {
+    if (feedbackEndpoint) return;
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const dateRequest = {
+      date: selectedDateLabel,
+      outing: String(formData.get("Tipo de passeio") ?? ""),
+      place: String(formData.get("Local desejado") ?? ""),
+      description: String(formData.get("Descrição do local") ?? ""),
+    };
+    localStorage.setItem("pedido-de-encontro-para-victor", JSON.stringify(dateRequest));
+    setDateRequestSaved(true);
+  }
+
   return (
     <>
       <div className="computer-only" role="status">
@@ -442,6 +482,57 @@ export default function MemoryExperience() {
               </form>
             </section>
           )}
+
+          {visible.date && (
+            <section className={`os-window date-window${maximized.date ? " is-maximized" : ""}`} style={windowStyle("date")} onPointerDown={() => front("date")} aria-label="Escolher uma data para nosso encontro">
+              <WindowBar title="NOSSO_ENCONTRO.CAL" onClose={() => close("date")} maximized={maximized.date} onToggleMaximize={() => toggleMaximize("date")} onDragStart={(event) => startDrag("date", event)} onDragMove={dragWindow} onDragEnd={endDrag} onNudge={(x, y, bar) => nudgeWindow("date", x, y, bar)} />
+              <div className="date-planner">
+                {dateStep === "calendar" && (
+                  <section className="calendar-step" aria-labelledby="calendar-heading">
+                    <div className="date-intro"><span>UM CONVITE PARA NÓS DOIS</span><h2 id="calendar-heading">Quando você quer sair comigo?</h2><p>Escolha um dia no calendário. Todos os dias do mês estão disponíveis para seleção.</p></div>
+                    <div className="calendar-toolbar">
+                      <button type="button" onClick={() => changeCalendarMonth(-1)} aria-label="Mês anterior">←</button>
+                      <strong>{calendarTitle}</strong>
+                      <button type="button" onClick={() => changeCalendarMonth(1)} aria-label="Próximo mês">→</button>
+                    </div>
+                    <div className="calendar-weekdays" aria-hidden="true"><span>DOM</span><span>SEG</span><span>TER</span><span>QUA</span><span>QUI</span><span>SEX</span><span>SÁB</span></div>
+                    <div className="calendar-grid" role="grid" aria-label={`Calendário de ${calendarTitle}`}>
+                      {Array.from({ length: firstCalendarWeekday }, (_, index) => <span className="calendar-empty" key={`empty-${index}`} />)}
+                      {Array.from({ length: daysInCalendarMonth }, (_, index) => {
+                        const day = index + 1;
+                        return <button type="button" className="calendar-day" data-day={day} key={day} onClick={() => chooseDate(day)} aria-label={`Escolher dia ${day} de ${calendarTitle}`}><span>{day}</span><small>♡</small></button>;
+                      })}
+                    </div>
+                  </section>
+                )}
+
+                {dateStep === "confirm" && (
+                  <section className="date-confirm" aria-labelledby="date-confirm-title">
+                    <span className="date-heart" aria-hidden="true">♡</span>
+                    <p>VOCÊ ESCOLHEU</p>
+                    <strong>{selectedDateLabel}</strong>
+                    <h2 id="date-confirm-title">Tem certeza dessa data?</h2>
+                    <div className="date-actions"><button type="button" className="secondary" onClick={() => setDateStep("calendar")}>ESCOLHER OUTRA</button><button type="button" onClick={() => setDateStep("details")}>SIM, TENHO CERTEZA ♡</button></div>
+                  </section>
+                )}
+
+                {dateStep === "details" && (
+                  <form className="date-details" action={feedbackEndpoint || undefined} method="POST" onSubmit={saveDateRequestLocally}>
+                    <input type="hidden" name="_subject" value="Vitória escolheu uma data para sair com você ♡" />
+                    <input type="hidden" name="_template" value="table" />
+                    <input type="hidden" name="_next" value={`${siteUrl}#encontro-enviado`} />
+                    <input type="hidden" name="Data escolhida" value={selectedDateLabel} />
+                    <header><span>ENCONTRO ESCOLHIDO</span><h2>{selectedDateLabel}</h2><button type="button" onClick={() => setDateStep("calendar")}>TROCAR DATA</button></header>
+                    <label htmlFor="outing-type">ONDE VOCÊ QUER IR?<select id="outing-type" name="Tipo de passeio" defaultValue="" required><option value="" disabled>Escolha uma ideia...</option><option>Restaurante</option><option>Cinema</option><option>Parque ou praia</option><option>Café ou confeitaria</option><option>Passeio surpresa</option><option>Outro lugar</option></select></label>
+                    <label htmlFor="outing-place">QUAL É O LOCAL?<input id="outing-place" name="Local desejado" minLength={2} maxLength={120} placeholder="Ex.: o nome do restaurante ou lugar" required /></label>
+                    <label className="date-description" htmlFor="outing-description">DESCREVA O LOCAL E O QUE VOCÊ IMAGINOU<textarea id="outing-description" name="Descrição do local" minLength={3} maxLength={1000} placeholder="Conte onde fica, o que gostaria de fazer e qualquer detalhe importante..." required /></label>
+                    <button type="submit" className="date-submit">ENVIAR NOSSO ENCONTRO PARA O VICTOR ♡</button>
+                    {dateRequestSaved && <p className="date-saved" role="status">Pedido guardado neste computador.</p>}
+                  </form>
+                )}
+              </div>
+            </section>
+          )}
         </section>
 
         <nav className="desktop-dock" aria-label="Aplicativos do presente">
@@ -451,6 +542,7 @@ export default function MemoryExperience() {
           <button type="button" className="dock-heart" onClick={() => chooseSong(4)}><span aria-hidden="true">♡</span><strong>Nossa música</strong></button>
           <button type="button" onClick={() => show("letter")}><span aria-hidden="true">✉</span><strong>Carta</strong></button>
           <button type="button" onClick={() => show("response")}><span aria-hidden="true">✎</span><strong>Responder</strong></button>
+          <button type="button" className="dock-date" onClick={() => show("date")}><span aria-hidden="true">17</span><strong>Encontro</strong></button>
         </nav>
       </main>
     </>
