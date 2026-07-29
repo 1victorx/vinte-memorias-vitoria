@@ -32,6 +32,18 @@ for (const size of sizes) {
   assert.equal(await page.locator(".archive-window").count(), 1, `${size.name}: janela de arquivo ausente`);
   assert.equal(await page.locator(".disc-item").count(), 20, `${size.name}: seletor precisa ter 20 músicas`);
   assert.equal(await page.locator(".archive-list button").count(), 20, `${size.name}: arquivo precisa ter 20 memórias`);
+  assert.equal(await page.locator(".disc-item .compact-disc img").count(), 20, `${size.name}: CDs personalizados precisam exibir 20 capas`);
+
+  const memoryWindow = page.locator(".memory-window");
+  const beforeDrag = await memoryWindow.boundingBox();
+  const dragBar = await memoryWindow.locator(".window-bar").boundingBox();
+  assert.ok(beforeDrag && dragBar, `${size.name}: janela principal não pôde ser medida`);
+  await page.mouse.move(dragBar.x + dragBar.width / 2, dragBar.y + dragBar.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(dragBar.x + dragBar.width / 2 + 55, dragBar.y + dragBar.height / 2 + 24, { steps: 5 });
+  await page.mouse.up();
+  const afterDrag = await memoryWindow.boundingBox();
+  assert.ok(afterDrag && afterDrag.x >= beforeDrag.x + 45, `${size.name}: janela não respondeu ao arraste`);
   await page.screenshot({ path: fileURLToPath(new URL(`${size.name}-initial.png`, outputDir)), fullPage: false });
 
   await page.locator(".disc-item").nth(4).click();

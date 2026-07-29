@@ -9,14 +9,17 @@ romântica inspirada em interfaces antigas, e é publicado gratuitamente pelo Gi
 
 ## Funcionalidades
 
-- Área de trabalho retrô com janelas sobrepostas e dock de aplicativos.
+- Área de trabalho retrô com janelas sobrepostas, arrastáveis e dock de aplicativos.
+- Barras de título movidas pelo mouse ou pelas setas do teclado.
+- Visual mais pixelado, com sombras rígidas, grades e controles inspirados em interfaces antigas.
 - 46 fotografias organizadas cronologicamente.
 - 20 músicas otimizadas para carregamento pela internet.
 - Janela independente para escolher livremente qualquer uma das 20 músicas.
+- CDs personalizados com fotografias reais de cada memória.
 - Botão especial para a música **No Escuro**.
 - Mensagem escondida em cada memória.
 - Janela de fotos e textos com índice cronológico dos 20 capítulos.
-- Janelas espec�ficas para a carta final e a resposta.
+- Janelas específicas para a carta final e a resposta.
 - Campo para Vitória enviar uma resposta ao Victor.
 - Layout testado em monitores de 1280 px, 1440 px e 1920 px.
 - Navegação por teclado, foco visível e redução de movimento.
@@ -42,7 +45,7 @@ presente. O envio da resposta utiliza um provedor externo gratuito.
 app/
   components/MemoryExperience.tsx  experiência interativa
   data/memories.ts                 textos, datas, músicas e fotos
-  globals.css                      interface desktop e janelas retr�
+  globals.css                      interface desktop e janelas retrô
 public/
   media/photos/                    46 fotos otimizadas
   media/audio/                     20 faixas otimizadas

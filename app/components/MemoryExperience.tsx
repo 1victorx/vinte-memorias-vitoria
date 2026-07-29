@@ -1,10 +1,25 @@
 "use client";
 
 import Image from "next/image";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import {
+  FormEvent,
+  PointerEvent as ReactPointerEvent,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { memories } from "../data/memories";
 
 type WindowName = "music" | "memory" | "archive" | "letter" | "response";
+type Point = { x: number; y: number };
+type DragState = {
+  name: WindowName;
+  pointerId: number;
+  originX: number;
+  originY: number;
+  start: Point;
+  rect: DOMRect;
+};
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://1victorx.github.io/vinte-memorias-vitoria/";
@@ -16,12 +31,50 @@ function formatTime(seconds: number) {
   return `${Math.floor(seconds / 60)}:${Math.floor(seconds % 60).toString().padStart(2, "0")}`;
 }
 
-function WindowBar({ title, onClose }: { title: string; onClose: () => void }) {
+function WindowBar({
+  title,
+  onClose,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
+  onNudge,
+}: {
+  title: string;
+  onClose: () => void;
+  onDragStart: (event: ReactPointerEvent<HTMLElement>) => void;
+  onDragMove: (event: ReactPointerEvent<HTMLElement>) => void;
+  onDragEnd: (event: ReactPointerEvent<HTMLElement>) => void;
+  onNudge: (x: number, y: number) => void;
+}) {
   return (
-    <header className="window-bar">
+    <header
+      className="window-bar"
+      tabIndex={0}
+      aria-label={`Mover janela ${title}`}
+      onPointerDown={onDragStart}
+      onPointerMove={onDragMove}
+      onPointerUp={onDragEnd}
+      onPointerCancel={onDragEnd}
+      onKeyDown={(event) => {
+        const distance = event.shiftKey ? 30 : 10;
+        if (event.key === "ArrowLeft") onNudge(-distance, 0);
+        else if (event.key === "ArrowRight") onNudge(distance, 0);
+        else if (event.key === "ArrowUp") onNudge(0, -distance);
+        else if (event.key === "ArrowDown") onNudge(0, distance);
+        else return;
+        event.preventDefault();
+      }}
+    >
       <span className="window-grip" aria-hidden="true" />
       <strong>{title}</strong>
-      <button type="button" onClick={onClose} aria-label={`Fechar ${title}`}>×</button>
+      <button
+        type="button"
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={onClose}
+        aria-label={`Fechar ${title}`}
+      >
+        ×
+      </button>
     </header>
   );
 }
@@ -43,7 +96,14 @@ export default function MemoryExperience() {
   const [layers, setLayers] = useState<Record<WindowName, number>>({
     music: 12, memory: 14, archive: 13, letter: 15, response: 16,
   });
-  const topLayer = useRef(20);
+  const [positions, setPositions] = useState<Record<WindowName, Point>>({
+    music: { x: 0, y: 0 },
+    memory: { x: 0, y: 0 },
+    archive: { x: 0, y: 0 },
+    letter: { x: 0, y: 0 },
+    response: { x: 0, y: 0 },
+  });
+  const dragState = useRef<DragState | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const autoplay = useRef(false);
   const activeMemory = memories[activeMemoryIndex];
@@ -74,9 +134,66 @@ export default function MemoryExperience() {
   }, [volume]);
 
   function front(name: WindowName) {
-    topLayer.current += 1;
-    setLayers((current) => ({ ...current, [name]: topLayer.current }));
+    setLayers((current) => {
+      const nextLayer = Math.max(...Object.values(current)) + 1;
+      return { ...current, [name]: nextLayer };
+    });
   }
+
+  function windowStyle(name: WindowName) {
+    const point = positions[name];
+    return {
+      zIndex: layers[name],
+      transform: `translate3d(${point.x}px, ${point.y}px, 0)`,
+    };
+  }
+
+  function startDrag(name: WindowName, event: ReactPointerEvent<HTMLElement>) {
+    if (event.button !== 0) return;
+    const windowElement = event.currentTarget.closest(".os-window");
+    if (!(windowElement instanceof HTMLElement)) return;
+    front(name);
+    dragState.current = {
+      name,
+      pointerId: event.pointerId,
+      originX: event.clientX,
+      originY: event.clientY,
+      start: positions[name],
+      rect: windowElement.getBoundingClientRect(),
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function dragWindow(event: ReactPointerEvent<HTMLElement>) {
+    const drag = dragState.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const rawLeft = drag.rect.left + event.clientX - drag.originX;
+    const rawTop = drag.rect.top + event.clientY - drag.originY;
+    const left = Math.max(0, Math.min(window.innerWidth - drag.rect.width, rawLeft));
+    const top = Math.max(30, Math.min(window.innerHeight - 76 - drag.rect.height, rawTop));
+    setPositions((current) => ({
+      ...current,
+      [drag.name]: {
+        x: drag.start.x + left - drag.rect.left,
+        y: drag.start.y + top - drag.rect.top,
+      },
+    }));
+  }
+
+  function endDrag(event: ReactPointerEvent<HTMLElement>) {
+    if (dragState.current?.pointerId !== event.pointerId) return;
+    dragState.current = null;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  }
+
+  function nudgeWindow(name: WindowName, x: number, y: number) {
+    front(name);
+    setPositions((current) => ({
+      ...current,
+      [name]: { x: current[name].x + x, y: current[name].y + y },
+    }));
+  }
+
 
   function show(name: WindowName) {
     setVisible((current) => ({ ...current, [name]: true }));
@@ -162,13 +279,13 @@ export default function MemoryExperience() {
           <div className="desktop-stamp" aria-hidden="true"><span>V + V</span><small>DESDE 2025</small></div>
 
           {visible.music && (
-            <section className="os-window music-window" style={{ zIndex: layers.music }} onPointerDown={() => front("music")} aria-label="Seletor de músicas">
-              <WindowBar title="MIXTAPES" onClose={() => close("music")} />
+            <section className="os-window music-window" style={windowStyle("music")} onPointerDown={() => front("music")} aria-label="Seletor de músicas">
+              <WindowBar title="MIXTAPES" onClose={() => close("music")} onDragStart={(event) => startDrag("music", event)} onDragMove={dragWindow} onDragEnd={endDrag} onNudge={(x, y) => nudgeWindow("music", x, y)} />
               <div className="window-toolbar"><span>ARQUIVO</span><span>20 FAIXAS</span><span>VOL {Math.round(volume * 100)}%</span></div>
-              <div className="disc-grid">
+              <div className={`disc-grid${playing ? " is-playing" : ""}`}>
                 {memories.map((memory, index) => (
                   <button type="button" className={`disc-item${selectedSongIndex === index ? " is-selected" : ""}`} key={memory.id} onClick={() => chooseSong(index)} aria-label={`Tocar ${memory.song.title}, ${memory.song.artist}`}>
-                    <span className={`compact-disc disc-${memory.theme}`} aria-hidden="true"><i /></span>
+                    <span className={`compact-disc disc-${memory.theme}`} aria-hidden="true"><Image src={asset(memory.photos[0])} alt="" fill sizes="45px" unoptimized /><i /></span>
                     <strong>{memory.id.toString().padStart(2, "0")}—{memory.song.title}</strong>
                     <small>{memory.song.artist}</small>
                   </button>
@@ -189,8 +306,8 @@ export default function MemoryExperience() {
           )}
 
           {visible.memory && (
-            <article className="os-window memory-window" style={{ zIndex: layers.memory }} onPointerDown={() => front("memory")} aria-label={`Memória ${activeMemory.id}: ${activeMemory.title}`}>
-              <WindowBar title={`MEMÓRIA_${activeMemory.id.toString().padStart(2, "0")}.TXT`} onClose={() => close("memory")} />
+            <article className="os-window memory-window" style={windowStyle("memory")} onPointerDown={() => front("memory")} aria-label={`Memória ${activeMemory.id}: ${activeMemory.title}`}>
+              <WindowBar title={`MEMÓRIA_${activeMemory.id.toString().padStart(2, "0")}.TXT`} onClose={() => close("memory")} onDragStart={(event) => startDrag("memory", event)} onDragMove={dragWindow} onDragEnd={endDrag} onNudge={(x, y) => nudgeWindow("memory", x, y)} />
               <div className="memory-toolbar"><button type="button" onClick={() => moveMemory(-1)}>← ANTERIOR</button><span>{activeMemory.id.toString().padStart(2, "0")} / 20</span><button type="button" onClick={() => moveMemory(1)}>PRÓXIMA →</button></div>
               <div className="memory-workspace">
                 <section className="memory-document">
@@ -220,8 +337,8 @@ export default function MemoryExperience() {
           )}
 
           {visible.archive && (
-            <aside className="os-window archive-window" style={{ zIndex: layers.archive }} onPointerDown={() => front("archive")} aria-label="Arquivo das vinte memórias">
-              <WindowBar title="FOTOS & TEXTOS" onClose={() => close("archive")} />
+            <aside className="os-window archive-window" style={windowStyle("archive")} onPointerDown={() => front("archive")} aria-label="Arquivo das vinte memórias">
+              <WindowBar title="FOTOS & TEXTOS" onClose={() => close("archive")} onDragStart={(event) => startDrag("archive", event)} onDragMove={dragWindow} onDragEnd={endDrag} onNudge={(x, y) => nudgeWindow("archive", x, y)} />
               <div className="archive-header"><span>ÍNDICE CRONOLÓGICO</span><strong>VITÓRIA ♡ VICTOR</strong></div>
               <ol className="archive-list">
                 {memories.map((memory, index) => <li key={memory.id}><button type="button" className={activeMemoryIndex === index ? "is-active" : ""} onClick={() => selectMemory(index)}><span className="archive-thumb"><Image src={asset(memory.photos[0])} alt="" fill sizes="54px" unoptimized /></span><span><small>{memory.date}</small><strong>{memory.id.toString().padStart(2, "0")}. {memory.title}</strong></span></button></li>)}
@@ -230,8 +347,8 @@ export default function MemoryExperience() {
           )}
 
           {visible.letter && (
-            <section className="os-window letter-window" style={{ zIndex: layers.letter }} onPointerDown={() => front("letter")} aria-label="Carta para Vitória">
-              <WindowBar title="CARTA_FINAL.DOC" onClose={() => close("letter")} />
+            <section className="os-window letter-window" style={windowStyle("letter")} onPointerDown={() => front("letter")} aria-label="Carta para Vitória">
+              <WindowBar title="CARTA_FINAL.DOC" onClose={() => close("letter")} onDragStart={(event) => startDrag("letter", event)} onDragMove={dragWindow} onDragEnd={endDrag} onNudge={(x, y) => nudgeWindow("letter", x, y)} />
               <div className="letter-layout">
                 <figure className="letter-polaroid"><Image src={asset("/media/photos/memory-20-01.jpg")} alt="Vitória e Victor em uma lembrança juntos" fill sizes="280px" unoptimized /><figcaption>para sempre nós</figcaption></figure>
                 <article className="letter-paper">
@@ -247,8 +364,8 @@ export default function MemoryExperience() {
           )}
 
           {visible.response && (
-            <section className="os-window response-window" style={{ zIndex: layers.response }} onPointerDown={() => front("response")} aria-label="Responder ao presente">
-              <WindowBar title="CAIXA_DE_MENSAGEM" onClose={() => close("response")} />
+            <section className="os-window response-window" style={windowStyle("response")} onPointerDown={() => front("response")} aria-label="Responder ao presente">
+              <WindowBar title="CAIXA_DE_MENSAGEM" onClose={() => close("response")} onDragStart={(event) => startDrag("response", event)} onDragMove={dragWindow} onDragEnd={endDrag} onNudge={(x, y) => nudgeWindow("response", x, y)} />
               <form action={feedbackEndpoint || undefined} method="POST" onSubmit={saveMessageLocally}>
                 <input type="hidden" name="_subject" value="Vitória respondeu ao presente de 20 memórias" />
                 <input type="hidden" name="_template" value="table" />
