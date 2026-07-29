@@ -24,6 +24,24 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://1victorx.github.io/vinte-memorias-vitoria/";
 const feedbackEndpoint = process.env.NEXT_PUBLIC_FEEDBACK_ENDPOINT ?? "";
 const asset = (path: string) => `${basePath}${path}`;
+const welcomeMessages = [
+  "Essa opção não vale ♡",
+  "Tem certeza? O presente está incrível!",
+  "Você sabe que quer dizer sim",
+  "Não adianta fugir do presente!",
+  "O amor já escolheu a outra opção",
+  "Quase! Mas esse botão é mais rápido",
+];
+
+function distanceFromPointToRect(x: number, y: number, rect: DOMRect) {
+  const dx = Math.max(rect.left - x, 0, x - rect.right);
+  const dy = Math.max(rect.top - y, 0, y - rect.bottom);
+  return Math.hypot(dx, dy);
+}
+
+function rectanglesOverlap(a: { left: number; top: number; right: number; bottom: number }, b: DOMRect, gap = 28) {
+  return !(a.right + gap < b.left || a.left - gap > b.right || a.bottom + gap < b.top || a.top - gap > b.bottom);
+}
 
 function formatTime(seconds: number) {
   if (!Number.isFinite(seconds)) return "0:00";
@@ -98,6 +116,10 @@ function WindowBar({
 }
 
 export default function MemoryExperience() {
+  const [welcomeVisible, setWelcomeVisible] = useState(true);
+  const [welcomeLeaving, setWelcomeLeaving] = useState(false);
+  const [welcomeMessage, setWelcomeMessage] = useState("Só existe uma resposta certa...");
+  const [noPosition, setNoPosition] = useState<Point | null>(null);
   const [activeMemoryIndex, setActiveMemoryIndex] = useState(0);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [selectedSongIndex, setSelectedSongIndex] = useState(0);
@@ -134,6 +156,13 @@ export default function MemoryExperience() {
     response: false,
     date: false,
   });
+  const welcomeRef = useRef<HTMLElement>(null);
+  const welcomeCopyRef = useRef<HTMLDivElement>(null);
+  const yesButtonRef = useRef<HTMLButtonElement>(null);
+  const noButtonRef = useRef<HTMLButtonElement>(null);
+  const lastEscapeTime = useRef(Number.NEGATIVE_INFINITY);
+  const escapeCount = useRef(0);
+  const welcomeTimer = useRef<number | null>(null);
   const dragState = useRef<DragState | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const autoplay = useRef(false);
@@ -146,6 +175,10 @@ export default function MemoryExperience() {
   const selectedDateLabel = selectedDate
     ? new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" }).format(new Date(`${selectedDate}T12:00:00`))
     : "";
+
+  useEffect(() => () => {
+    if (welcomeTimer.current) window.clearTimeout(welcomeTimer.current);
+  }, []);
 
   useEffect(() => {
     const update = () => setClock(new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(new Date()));
@@ -350,15 +383,117 @@ export default function MemoryExperience() {
     setDateRequestSaved(true);
   }
 
+  function escapeNoButton(pointerX: number, pointerY: number) {
+    if (!welcomeVisible || welcomeLeaving || !noButtonRef.current) return;
+    const now = performance.now();
+    if (now - lastEscapeTime.current < 90) return;
+    lastEscapeTime.current = now;
+
+    const buttonRect = noButtonRef.current.getBoundingClientRect();
+    const buttonWidth = buttonRect.width || 146;
+    const buttonHeight = buttonRect.height || 48;
+    const margin = 52;
+    const exclusions = [welcomeCopyRef.current?.getBoundingClientRect(), welcomeRef.current?.querySelector(".welcome-message")?.getBoundingClientRect(), yesButtonRef.current?.getBoundingClientRect()].filter((rect): rect is DOMRect => Boolean(rect));
+    let nextX = margin;
+    let nextY = margin;
+
+    for (let attempt = 0; attempt < 80; attempt += 1) {
+      const candidateX = margin + Math.random() * Math.max(1, window.innerWidth - buttonWidth - margin * 2);
+      const candidateY = margin + Math.random() * Math.max(1, window.innerHeight - buttonHeight - margin * 2);
+      const candidate = { left: candidateX, top: candidateY, right: candidateX + buttonWidth, bottom: candidateY + buttonHeight };
+      const farFromCursor = distanceFromPointToRect(pointerX, pointerY, new DOMRect(candidateX, candidateY, buttonWidth, buttonHeight)) > 180;
+      if (farFromCursor && exclusions.every((rect) => !rectanglesOverlap(candidate, rect))) {
+        nextX = candidateX;
+        nextY = candidateY;
+        break;
+      }
+    }
+
+    escapeCount.current += 1;
+    setWelcomeMessage(welcomeMessages[(escapeCount.current - 1) % welcomeMessages.length]);
+    setNoPosition({ x: nextX, y: nextY });
+  }
+
+  function trackWelcomePointer(event: ReactPointerEvent<HTMLElement>) {
+    const screen = welcomeRef.current;
+    if (screen) {
+      const horizontal = (event.clientX / window.innerWidth - 0.5) * 16;
+      const vertical = (event.clientY / window.innerHeight - 0.5) * 10;
+      screen.style.setProperty("--welcome-x", `${horizontal}px`);
+      screen.style.setProperty("--welcome-y", `${vertical}px`);
+    }
+    const noButton = noButtonRef.current;
+    if (noButton && distanceFromPointToRect(event.clientX, event.clientY, noButton.getBoundingClientRect()) < 145) {
+      escapeNoButton(event.clientX, event.clientY);
+    }
+  }
+
+  function enterGift() {
+    if (welcomeLeaving) return;
+    setWelcomeLeaving(true);
+    welcomeTimer.current = window.setTimeout(() => setWelcomeVisible(false), 720);
+  }
+
   return (
     <>
+      {welcomeVisible && (
+        <section
+          ref={welcomeRef}
+          className={`welcome-screen${welcomeLeaving ? " is-leaving" : ""}`}
+          onPointerMove={trackWelcomePointer}
+          aria-label="Boas-vindas ao presente"
+        >
+          <div className="welcome-scenery" aria-hidden="true">
+            <span className="welcome-sun" />
+            <span className="welcome-cloud welcome-cloud--one" />
+            <span className="welcome-cloud welcome-cloud--two" />
+            <span className="welcome-wave welcome-wave--one" />
+            <span className="welcome-wave welcome-wave--two" />
+            <span className="welcome-flower welcome-flower--one" />
+            <span className="welcome-flower welcome-flower--two" />
+            <span className="welcome-flower welcome-flower--three" />
+            <span className="welcome-flower welcome-flower--four" />
+            <span className="welcome-petal welcome-petal--one" />
+            <span className="welcome-petal welcome-petal--two" />
+            <span className="welcome-petal welcome-petal--three" />
+            <span className="welcome-petal welcome-petal--four" />
+          </div>
+          <div className="welcome-card">
+            <div className="welcome-copy" ref={welcomeCopyRef}>
+              <span className="welcome-kicker">UM PRESENTE FEITO SÓ PARA VOCÊ</span>
+              <h1>Você está pronta para ver o seu presente?</h1>
+              <p>Tem mar, flores, música e vinte pedacinhos da nossa história esperando por você.</p>
+            </div>
+            <p className="welcome-message" aria-live="polite">{welcomeMessage}</p>
+            <button ref={yesButtonRef} type="button" className="welcome-yes" onClick={enterGift}>Sim</button>
+          </div>
+          <button
+            ref={noButtonRef}
+            type="button"
+            className="welcome-no"
+            style={noPosition ? { left: noPosition.x, top: noPosition.y } : undefined}
+            tabIndex={-1}
+            aria-disabled="true"
+            onPointerEnter={(event) => escapeNoButton(event.clientX, event.clientY)}
+            onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); escapeNoButton(event.clientX, event.clientY); }}
+            onClick={(event) => { event.preventDefault(); escapeNoButton(event.clientX, event.clientY); }}
+            onFocus={(event) => { event.currentTarget.blur(); escapeNoButton(window.innerWidth / 2, window.innerHeight / 2); }}
+            onKeyDown={(event) => event.preventDefault()}
+            onContextMenu={(event) => event.preventDefault()}
+            draggable={false}
+          >
+            Não
+          </button>
+        </section>
+      )}
+
       <div className="computer-only" role="status">
         <span aria-hidden="true">▣</span>
         <h1>Este presente foi feito para computador.</h1>
         <p>Abra o link em uma tela maior para explorar todas as janelas.</p>
       </div>
 
-      <main className="desktop" data-interactive={clock !== "--:--"} aria-label="Área de trabalho das nossas memórias">
+      <main className={`desktop${welcomeVisible ? " is-waiting" : " is-revealed"}`} inert={welcomeVisible ? true : undefined} aria-hidden={welcomeVisible} data-interactive={clock !== "--:--"} aria-label="Área de trabalho das nossas memórias">
         <audio
           ref={audioRef}
           preload="metadata"

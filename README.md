@@ -9,6 +9,7 @@ romântica inspirada em interfaces antigas, e é publicado gratuitamente pelo Gi
 
 ## Funcionalidades
 
+- Tela de boas-vindas romântica inspirada em praia e flores, com transição para o presente e botão Não que foge do cursor.
 - Área de trabalho retrô com janelas sobrepostas, livremente arrastáveis nos dois eixos e dock de aplicativos.
 - Barras de título movidas pelo mouse ou pelas setas do teclado, com maximização e restauração.
 - Janelas redimensionáveis livremente pelo canto inferior direito.

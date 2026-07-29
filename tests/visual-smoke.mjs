@@ -26,6 +26,25 @@ for (const size of sizes) {
   page.on("requestfailed", (request) => { if (request.failure()?.errorText !== "net::ERR_ABORTED") pageErrors.push(`${request.failure()?.errorText} ${request.url()}`); });
 
   await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  const welcome = page.locator(".welcome-screen");
+  await page.getByRole("heading", { name: /você está pronta para ver o seu presente/i }).waitFor();
+  assert.equal(await page.locator("main").getAttribute("inert"), "", `${size.name}: presente precisa ficar inativo durante as boas-vindas`);
+  const noButton = page.locator(".welcome-no");
+  assert.equal(await noButton.getAttribute("tabindex"), "-1", `${size.name}: botão Não não pode entrar na navegação por teclado`);
+  const noBefore = await noButton.boundingBox();
+  const yesBefore = await page.getByRole("button", { name: "Sim", exact: true }).boundingBox();
+  assert.ok(noBefore && yesBefore, `${size.name}: botões de boas-vindas não puderam ser medidos`);
+  assert.ok(noBefore.x >= yesBefore.x + yesBefore.width + 10, `${size.name}: botões Sim e Não estão sobrepostos`);
+  await page.mouse.move(noBefore.x - 120, noBefore.y + noBefore.height / 2, { steps: 8 });
+  await page.waitForTimeout(180);
+  const noAfter = await noButton.boundingBox();
+  assert.match((await noButton.getAttribute("style")) ?? "", /left:/, `${size.name}: botão Não não recebeu uma nova posição`);
+  assert.ok(noAfter && noAfter.x >= 45 && noAfter.y >= 45 && noAfter.x + noAfter.width <= size.width - 45 && noAfter.y + noAfter.height <= size.height - 45, `${size.name}: botão Não fugiu para fora da área segura`);
+  assert.doesNotMatch(await welcome.textContent(), /só existe uma resposta certa/i, `${size.name}: tentativa no Não não alterou a mensagem`);
+  await noButton.evaluate((button) => button.click());
+  assert.equal(await welcome.isVisible(), true, `${size.name}: botão Não permitiu acessar o presente`);
+  await page.getByRole("button", { name: "Sim", exact: true }).click();
+  await welcome.waitFor({ state: "detached" });
   await page.getByRole("main", { name: /área de trabalho/i }).waitFor();
   await page.locator('main[data-interactive="true"]').waitFor();
   assert.equal(await page.locator(".music-window").count(), 1, `${size.name}: janela de músicas ausente`);
