@@ -9,8 +9,8 @@ romântica inspirada em interfaces antigas, e é publicado gratuitamente pelo Gi
 
 ## Funcionalidades
 
-- Tela de boas-vindas romântica inspirada em praia e flores, com transição para o presente e botão Não que foge do cursor.
-- Área de trabalho retrô com janelas sobrepostas, livremente arrastáveis nos dois eixos e dock de aplicativos.
+- Tela de boas-vindas romântica inspirada em praia e flores, com a fotografia real fornecida, transição leve sem filtros pesados e botão Não que foge do cursor.
+- Área de trabalho retrô iniciada limpa, com todas as janelas fechadas; depois da interação, elas podem ficar sobrepostas e ser arrastadas livremente nos dois eixos.
 - Barras de título movidas pelo mouse ou pelas setas do teclado, com maximização e restauração.
 - Janelas redimensionáveis livremente pelo canto inferior direito.
 - Visual soft-retro legível em zoom de 100%, com cantos moderados, detalhes florais e textura pixelada.
@@ -23,9 +23,9 @@ romântica inspirada em interfaces antigas, e é publicado gratuitamente pelo Gi
 - Janela de fotos e textos com índice cronológico dos 20 capítulos.
 - Janelas específicas para a carta final e a resposta.
 - Campo para Vitória enviar uma resposta ao Victor.
-- Janela de encontro com calendário mensal completo, confirmação da data, escolha do passeio e envio dos detalhes por e-mail.
-- 36 datas especiais de 2025 e 2026 destacadas com flores e descrições dentro do calendário.
-- Layout testado em monitores de 1280 px, 1440 px e 1920 px.
+- Janela de encontro com calendário mensal completo, confirmação da data, escolha do passeio, persistência local e envio dos detalhes por e-mail.
+- 36 encontros vividos de 2025 e 2026 destacados com cor, flor e contorno; datas passadas vazias ficam bloqueadas e encontros existentes abrem uma consulta segura somente com seus detalhes.
+- Layout testado em 1366 × 768, 1440 × 900, 1536 × 864 e 1920 × 1080, além de equivalentes a zoom de 125% e 150%.
 - Navegação por teclado, foco visível e redução de movimento.
 - Imagem de compartilhamento e metadados para redes sociais.
 
@@ -51,7 +51,7 @@ app/
   data/memories.ts                 textos, datas, músicas e fotos
   globals.css                      interface desktop e janelas retrô
 public/
-  media/photos/                    46 fotos otimizadas
+  media/photos/                    46 fotos das memórias e a foto de flores otimizada
   media/audio/                     20 faixas otimizadas
   og.png                           imagem de compartilhamento
 scripts/
@@ -122,6 +122,8 @@ feita antes do aniversário para que as próximas mensagens sejam entregues.
 Sem essa configuração, o formulário preserva a mensagem apenas no navegador
 em que ela foi escrita. Como o GitHub Pages é uma hospedagem estática, um
 backend privado exigiria outro serviço.
+
+Os encontros agendados também são guardados no armazenamento local do navegador para aparecerem imediatamente no calendário e impedir uma segunda criação na mesma data. Essa persistência é específica daquele computador; a cópia enviada por e-mail continua sendo o registro acessível ao Victor.
 
 ## Publicação
 

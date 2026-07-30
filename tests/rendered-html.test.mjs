@@ -40,8 +40,9 @@ test("renderiza a area de trabalho do presente em portugues", async () => {
   assert.match(html, /<title>20 memórias para Vitória<\/title>/i);
   assert.match(html, /20 memórias/);
   assert.match(html, /VITÓRIA OS/);
-  assert.match(html, /FOTOS &amp; TEXTOS|FOTOS & TEXTOS/);
-  assert.match(html, /MIXTAPES/);
+  assert.match(html, /welcome-flowers\.webp/);
+  assert.match(html, /Aplicativos do presente/);
+  assert.match(html, /Nossa música/);
   assert.doesNotMatch(html, /Your site is taking shape|codex-preview/i);
 });
 
@@ -124,4 +125,28 @@ test("remove a interface temporaria e marcadores de trabalho incompleto", async 
   ).catch(() => []);
   assert.deepEqual(previewFiles, []);
   assert.ok(projectRoot);
+});
+
+test("inclui a fotografia fornecida e as regras locais do calendário", async () => {
+  const component = await readFile(
+    new URL("../app/components/MemoryExperience.tsx", import.meta.url),
+    "utf8",
+  );
+  const dateLogic = await readFile(
+    new URL("../app/lib/local-date.ts", import.meta.url),
+    "utf8",
+  );
+  const flower = await stat(
+    new URL("../public/media/photos/welcome-flowers.webp", import.meta.url),
+  );
+
+  assert.ok(flower.size > 100_000 && flower.size < 400_000);
+  assert.match(component, /welcome-flowers\.webp/);
+  assert.match(component, /music: false, memory: false, archive: false/);
+  assert.match(component, /disabled=\{isDisabled\}/);
+  assert.match(component, /dateSavingRef\.current/);
+  assert.match(component, /encontros-agendados-vitoria/);
+  assert.match(dateLogic, /new Date\(year, month - 1, day\)/);
+  assert.match(dateLogic, /parsed\.setHours\(0, 0, 0, 0\)/);
+  assert.match(dateLogic, /parsed\.getTime\(\) < today\.getTime\(\)/);
 });

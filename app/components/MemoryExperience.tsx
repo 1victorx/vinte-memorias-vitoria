@@ -10,6 +10,7 @@ import {
 } from "react";
 import { calendarMemories } from "../data/calendar-memories";
 import { memories } from "../data/memories";
+import { isPastLocalDate, localDateToIso, parseLocalIsoDate } from "../lib/local-date";
 
 type WindowName = "music" | "memory" | "archive" | "letter" | "response" | "date";
 type Point = { x: number; y: number };
@@ -20,11 +21,47 @@ type DragState = {
   originY: number;
   rect: DOMRect;
 };
+type DateStep = "calendar" | "confirm" | "details" | "record";
+type ScheduledEncounter = {
+  date: string;
+  outing: string;
+  place: string;
+  description: string;
+};
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://1victorx.github.io/vinte-memorias-vitoria/";
 const feedbackEndpoint = process.env.NEXT_PUBLIC_FEEDBACK_ENDPOINT ?? "";
 const asset = (path: string) => `${basePath}${path}`;
+const encounterStorageKey = "encontros-agendados-vitoria";
+
+function isScheduledEncounter(value: unknown): value is ScheduledEncounter {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<ScheduledEncounter>;
+  return (
+    typeof candidate.date === "string" &&
+    parseLocalIsoDate(candidate.date) !== null &&
+    typeof candidate.outing === "string" &&
+    typeof candidate.place === "string" &&
+    typeof candidate.description === "string"
+  );
+}
+
+function readScheduledEncounters(raw: string | null) {
+  const records: Record<string, ScheduledEncounter> = {};
+  if (!raw) return records;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return records;
+    Object.entries(parsed).forEach(([date, value]) => {
+      if (isScheduledEncounter(value) && value.date === date) records[date] = value;
+    });
+  } catch {
+    return records;
+  }
+  return records;
+}
+
 const welcomeMessages = [
   "Essa opção não vale ♡",
   "Tem certeza? O presente está incrível!",
@@ -131,13 +168,18 @@ export default function MemoryExperience() {
   const [secretOpen, setSecretOpen] = useState(false);
   const [savedMessage, setSavedMessage] = useState(false);
   const [dateRequestSaved, setDateRequestSaved] = useState(false);
-  const [dateStep, setDateStep] = useState<"calendar" | "confirm" | "details">("calendar");
+  const [dateStep, setDateStep] = useState<DateStep>("calendar");
+  const [todayIso, setTodayIso] = useState("");
+  const [scheduledEncounters, setScheduledEncounters] = useState<Record<string, ScheduledEncounter>>({});
+  const [recordDate, setRecordDate] = useState("");
+  const [dateError, setDateError] = useState("");
+  const [dateSaving, setDateSaving] = useState(false);
   const [selectedDate, setSelectedDate] = useState("");
   const [calendarPreviewDate, setCalendarPreviewDate] = useState<string | null>(null);
   const [calendarMonth, setCalendarMonth] = useState({ year: 2026, month: 7 });
   const [clock, setClock] = useState("--:--");
   const [visible, setVisible] = useState<Record<WindowName, boolean>>({
-    music: true, memory: true, archive: true, letter: false, response: false, date: false,
+    music: false, memory: false, archive: false, letter: false, response: false, date: false,
   });
   const [layers, setLayers] = useState<Record<WindowName, number>>({
     music: 12, memory: 14, archive: 13, letter: 15, response: 16, date: 17,
@@ -166,6 +208,8 @@ export default function MemoryExperience() {
   const escapeCount = useRef(0);
   const welcomeTimer = useRef<number | null>(null);
   const dragState = useRef<DragState | null>(null);
+  const recordCloseButton = useRef<HTMLButtonElement>(null);
+  const dateSavingRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const autoplay = useRef(false);
   const activeMemory = memories[activeMemoryIndex];
@@ -181,11 +225,44 @@ export default function MemoryExperience() {
   const calendarPreviewLabel = calendarPreviewDate
     ? new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long", year: "numeric" }).format(new Date(`${calendarPreviewDate}T12:00:00`))
     : "";
-  const selectedCalendarMemory = selectedDate ? calendarMemories[selectedDate] : undefined;
+  const recordCalendarMemory = recordDate ? calendarMemories[recordDate] : undefined;
+  const recordScheduledEncounter = recordDate ? scheduledEncounters[recordDate] : undefined;
+  const recordDateLabel = recordDate
+    ? new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" }).format(parseLocalIsoDate(recordDate) ?? new Date())
+    : "";
 
   useEffect(() => () => {
     if (welcomeTimer.current) window.clearTimeout(welcomeTimer.current);
   }, []);
+
+  useEffect(() => {
+    const refreshToday = () => setTodayIso(localDateToIso(new Date()));
+    refreshToday();
+    const timer = window.setInterval(refreshToday, 30_000);
+    const storageFrame = window.requestAnimationFrame(() => {
+      setScheduledEncounters(readScheduledEncounters(localStorage.getItem(encounterStorageKey)));
+    });
+    return () => {
+      window.clearInterval(timer);
+      window.cancelAnimationFrame(storageFrame);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (dateStep !== "record") return;
+    recordCloseButton.current?.focus();
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setDateStep("calendar");
+      const dateToFocus = recordDate;
+      window.requestAnimationFrame(() => {
+        document.querySelector<HTMLButtonElement>(`.calendar-day[data-date="${dateToFocus}"]`)?.focus();
+      });
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [dateStep, recordDate]);
 
   useEffect(() => {
     const update = () => setClock(new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(new Date()));
@@ -364,32 +441,104 @@ export default function MemoryExperience() {
 
   function changeCalendarMonth(offset: number) {
     setCalendarPreviewDate(null);
+    setDateError("");
     setCalendarMonth((current) => {
       const next = new Date(current.year, current.month + offset, 1);
       return { year: next.getFullYear(), month: next.getMonth() };
     });
   }
 
+  function openDateRecord(isoDate: string) {
+    setRecordDate(isoDate);
+    setCalendarPreviewDate(null);
+    setDateError("");
+    setDateStep("record");
+  }
+
+  function returnToCalendar(dateToFocus: string) {
+    setDateError("");
+    setDateStep("calendar");
+    window.requestAnimationFrame(() => {
+      document.querySelector<HTMLButtonElement>(`.calendar-day[data-date="${dateToFocus}"]`)?.focus();
+    });
+  }
+
+  function closeDateRecord() {
+    returnToCalendar(recordDate);
+  }
+
   function chooseDate(day: number) {
     const month = String(calendarMonth.month + 1).padStart(2, "0");
-    setSelectedDate(`${calendarMonth.year}-${month}-${String(day).padStart(2, "0")}`);
+    const isoDate = `${calendarMonth.year}-${month}-${String(day).padStart(2, "0")}`;
+    if (calendarMemories[isoDate] || scheduledEncounters[isoDate]) {
+      openDateRecord(isoDate);
+      return;
+    }
+    if (!parseLocalIsoDate(isoDate) || isPastLocalDate(isoDate)) {
+      setDateError("Datas passadas ficam disponíveis somente para consultar lembranças já registradas.");
+      return;
+    }
+    setSelectedDate(isoDate);
     setDateRequestSaved(false);
+    setDateError("");
     setCalendarPreviewDate(null);
     setDateStep("confirm");
   }
 
   function saveDateRequestLocally(event: FormEvent<HTMLFormElement>) {
-    if (feedbackEndpoint) return;
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const dateRequest = {
-      date: selectedDateLabel,
-      outing: String(formData.get("Tipo de passeio") ?? ""),
-      place: String(formData.get("Local desejado") ?? ""),
-      description: String(formData.get("Descrição do local") ?? ""),
-    };
-    localStorage.setItem("pedido-de-encontro-para-victor", JSON.stringify(dateRequest));
-    setDateRequestSaved(true);
+    if (dateSavingRef.current) return;
+    const parsedDate = parseLocalIsoDate(selectedDate);
+    if (!parsedDate) {
+      setDateError("A data escolhida é inválida. Volte ao calendário e escolha outra data.");
+      return;
+    }
+    if (isPastLocalDate(selectedDate)) {
+      setDateError("Não é possível marcar um novo encontro em uma data passada.");
+      return;
+    }
+    if (calendarMemories[selectedDate] || scheduledEncounters[selectedDate]) {
+      setDateError("Já existe um encontro registrado nessa data. Consulte os detalhes no calendário.");
+      return;
+    }
+
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const outing = String(formData.get("Tipo de passeio") ?? "").trim();
+    const place = String(formData.get("Local desejado") ?? "").trim();
+    const description = String(formData.get("Descrição do local") ?? "").trim();
+    const allowedOutings = new Set(["Restaurante", "Cinema", "Parque ou praia", "Café ou confeitaria", "Passeio surpresa", "Outro lugar"]);
+    if (!allowedOutings.has(outing) || place.length < 2 || place.length > 120 || description.length < 3 || description.length > 1000) {
+      setDateError("Revise o tipo de passeio, o local e a descrição antes de enviar.");
+      return;
+    }
+
+    dateSavingRef.current = true;
+    setDateSaving(true);
+    setDateError("");
+    const encounter: ScheduledEncounter = { date: selectedDate, outing, place, description };
+    const nextEncounters = { ...scheduledEncounters, [selectedDate]: encounter };
+    try {
+      localStorage.setItem(encounterStorageKey, JSON.stringify(nextEncounters));
+      localStorage.setItem("pedido-de-encontro-para-victor", JSON.stringify(encounter));
+      setScheduledEncounters(nextEncounters);
+      setDateRequestSaved(true);
+      setRecordDate(selectedDate);
+      if (feedbackEndpoint) {
+        form.submit();
+        return;
+      }
+      setDateStep("record");
+    } catch {
+      dateSavingRef.current = false;
+      setDateSaving(false);
+      setDateError("Não foi possível guardar o encontro neste computador. Tente novamente.");
+    } finally {
+      if (!feedbackEndpoint) {
+        dateSavingRef.current = false;
+        setDateSaving(false);
+      }
+    }
   }
 
   function escapeNoButton(pointerX: number, pointerY: number) {
@@ -402,7 +551,7 @@ export default function MemoryExperience() {
     const buttonWidth = buttonRect.width || 146;
     const buttonHeight = buttonRect.height || 48;
     const margin = 52;
-    const exclusions = [welcomeCopyRef.current?.getBoundingClientRect(), welcomeRef.current?.querySelector(".welcome-message")?.getBoundingClientRect(), yesButtonRef.current?.getBoundingClientRect()].filter((rect): rect is DOMRect => Boolean(rect));
+    const exclusions = [welcomeRef.current?.querySelector(".welcome-card")?.getBoundingClientRect(), welcomeCopyRef.current?.getBoundingClientRect(), welcomeRef.current?.querySelector(".welcome-message")?.getBoundingClientRect(), yesButtonRef.current?.getBoundingClientRect()].filter((rect): rect is DOMRect => Boolean(rect));
     let nextX = margin;
     let nextY = margin;
 
@@ -437,10 +586,20 @@ export default function MemoryExperience() {
     }
   }
 
+  function finishWelcomeTransition() {
+    if (welcomeTimer.current) window.clearTimeout(welcomeTimer.current);
+    welcomeTimer.current = null;
+    setWelcomeVisible(false);
+  }
+
   function enterGift() {
     if (welcomeLeaving) return;
     setWelcomeLeaving(true);
-    welcomeTimer.current = window.setTimeout(() => setWelcomeVisible(false), 720);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      window.requestAnimationFrame(finishWelcomeTransition);
+      return;
+    }
+    welcomeTimer.current = window.setTimeout(finishWelcomeTransition, 520);
   }
 
   return (
@@ -450,6 +609,9 @@ export default function MemoryExperience() {
           ref={welcomeRef}
           className={`welcome-screen${welcomeLeaving ? " is-leaving" : ""}`}
           onPointerMove={trackWelcomePointer}
+          onTransitionEnd={(event) => {
+            if (welcomeLeaving && event.target === event.currentTarget && event.propertyName === "opacity") finishWelcomeTransition();
+          }}
           aria-label="Boas-vindas ao presente"
         >
           <div className="welcome-scenery" aria-hidden="true">
@@ -468,13 +630,26 @@ export default function MemoryExperience() {
             <span className="welcome-petal welcome-petal--four" />
           </div>
           <div className="welcome-card">
-            <div className="welcome-copy" ref={welcomeCopyRef}>
-              <span className="welcome-kicker">UM PRESENTE FEITO SÓ PARA VOCÊ</span>
-              <h1>Você está pronta para ver o seu presente?</h1>
-              <p>Tem mar, flores, música e vinte pedacinhos da nossa história esperando por você.</p>
+            <figure className="welcome-photo">
+              <Image
+                src={asset("/media/photos/welcome-flowers.webp")}
+                alt="Flores cor-de-rosa iluminadas pelo sol"
+                width={1200}
+                height={900}
+                priority
+                unoptimized
+              />
+              <figcaption>um jardim inteiro para o meu amor</figcaption>
+            </figure>
+            <div className="welcome-content">
+              <div className="welcome-copy" ref={welcomeCopyRef}>
+                <span className="welcome-kicker">UM PRESENTE FEITO SÓ PARA VOCÊ</span>
+                <h1>Você está pronta para ver o seu presente?</h1>
+                <p>Tem mar, flores, música e vinte pedacinhos da nossa história esperando por você.</p>
+              </div>
+              <p className="welcome-message" aria-live="polite">{welcomeMessage}</p>
+              <button ref={yesButtonRef} type="button" className="welcome-yes" onClick={enterGift}>Sim</button>
             </div>
-            <p className="welcome-message" aria-live="polite">{welcomeMessage}</p>
-            <button ref={yesButtonRef} type="button" className="welcome-yes" onClick={enterGift}>Sim</button>
           </div>
           <button
             ref={noButtonRef}
@@ -633,11 +808,16 @@ export default function MemoryExperience() {
               <div className="date-planner">
                 {dateStep === "calendar" && (
                   <section className="calendar-step" aria-labelledby="calendar-heading">
-                    <div className="date-intro"><span>UM CONVITE PARA NÓS DOIS</span><h2 id="calendar-heading">Quando você quer sair comigo?</h2><p>Escolha um dia no calendário. As datas com uma flor guardam lembranças da nossa história.</p></div>
+                    <div className="date-intro"><span>UM CONVITE PARA NÓS DOIS</span><h2 id="calendar-heading">Quando você quer sair comigo?</h2><p>Flores marcam encontros vividos; o ponto marca um encontro agendado. Datas passadas sem registro ficam indisponíveis.</p></div>
                     <div className="calendar-toolbar">
                       <button type="button" onClick={() => changeCalendarMonth(-1)} aria-label="Mês anterior">←</button>
                       <strong>{calendarTitle}</strong>
                       <button type="button" onClick={() => changeCalendarMonth(1)} aria-label="Próximo mês">→</button>
+                    </div>
+                    <div className="calendar-legend" aria-label="Legenda do calendário">
+                      <span><i className="legend-lived" aria-hidden="true">✿</i> encontro vivido</span>
+                      <span><i className="legend-planned" aria-hidden="true">●</i> encontro agendado</span>
+                      <span><i className="legend-today" aria-hidden="true" /> hoje</span>
                     </div>
                     <div className="calendar-weekdays" aria-hidden="true"><span>DOM</span><span>SEG</span><span>TER</span><span>QUA</span><span>QUI</span><span>SEX</span><span>SÁB</span></div>
                     <div className="calendar-grid" role="grid" aria-label={`Calendário de ${calendarTitle}`}>
@@ -646,31 +826,60 @@ export default function MemoryExperience() {
                         const day = index + 1;
                         const isoDate = `${calendarMonth.year}-${String(calendarMonth.month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
                         const calendarMemory = calendarMemories[isoDate];
+                        const scheduledEncounter = scheduledEncounters[isoDate];
+                        const isPast = Boolean(todayIso && isoDate < todayIso);
+                        const isToday = isoDate === todayIso;
+                        const hasRecord = Boolean(calendarMemory || scheduledEncounter);
+                        const isDisabled = isPast && !hasRecord;
+                        const isSelected = selectedDate === isoDate;
+                        const classes = [
+                          "calendar-day",
+                          calendarMemory ? "has-memory is-completed" : "",
+                          scheduledEncounter ? "has-scheduled is-future-meeting" : "",
+                          isPast ? "is-past" : "",
+                          isToday ? "is-today" : "",
+                          isSelected ? "is-selected" : "",
+                          isDisabled ? "is-disabled" : "",
+                        ].filter(Boolean).join(" ");
+                        const title = calendarMemory?.description ?? (scheduledEncounter ? `${scheduledEncounter.outing}: ${scheduledEncounter.place}` : undefined);
+                        const ariaLabel = calendarMemory
+                          ? `Encontro realizado em ${day} de ${calendarTitle}: ${calendarMemory.description}. Abrir detalhes.`
+                          : scheduledEncounter
+                            ? `Encontro agendado em ${day} de ${calendarTitle}: ${scheduledEncounter.outing}, ${scheduledEncounter.place}. Abrir detalhes.`
+                            : isDisabled
+                              ? `Dia ${day} de ${calendarTitle}, indisponível para novo encontro.`
+                              : `Escolher dia ${day} de ${calendarTitle}${isToday ? ", hoje" : ""}.`;
                         return (
                           <button
                             type="button"
-                            className={`calendar-day${calendarMemory ? " has-memory" : ""}`}
+                            className={classes}
                             data-day={day}
+                            data-date={isoDate}
                             data-memory-date={calendarMemory ? isoDate : undefined}
+                            data-scheduled-date={scheduledEncounter ? isoDate : undefined}
                             key={day}
-                            title={calendarMemory?.description}
+                            title={title}
+                            disabled={isDisabled}
                             onMouseEnter={() => calendarMemory && setCalendarPreviewDate(isoDate)}
                             onMouseLeave={() => setCalendarPreviewDate((current) => current === isoDate ? null : current)}
                             onFocus={() => calendarMemory && setCalendarPreviewDate(isoDate)}
                             onBlur={() => setCalendarPreviewDate((current) => current === isoDate ? null : current)}
                             onClick={() => chooseDate(day)}
-                            aria-label={`${calendarMemory ? `Memória: ${calendarMemory.description} ` : ""}Escolher dia ${day} de ${calendarTitle}`}
+                            aria-label={ariaLabel}
+                            aria-current={isToday ? "date" : undefined}
+                            aria-pressed={isSelected && !isDisabled}
                           >
-                            <span>{day}</span><small>{calendarMemory ? "✿" : "♡"}</small>
+                            <span>{day}</span><small aria-hidden="true">{calendarMemory ? "✿" : scheduledEncounter ? "●" : "♡"}</small>
                           </button>
                         );
                       })}
                     </div>
+                    {dateError && <p className="date-error" role="alert">{dateError}</p>}
                     {calendarPreviewMemory && (
                       <aside className="calendar-memory-preview" aria-live="polite">
                         <span>LEMBRANÇA DE {calendarPreviewLabel}</span>
                         <p>{calendarPreviewMemory.description}</p>
-                        <small>Clique no dia se quiser escolher esta data para o próximo encontro.</small>
+                        <small>Clique no dia para consultar os detalhes dessa lembrança.</small>
                       </aside>
                     )}
                   </section>
@@ -681,25 +890,48 @@ export default function MemoryExperience() {
                     <span className="date-heart" aria-hidden="true">♡</span>
                     <p>VOCÊ ESCOLHEU</p>
                     <strong>{selectedDateLabel}</strong>
-                    {selectedCalendarMemory && <div className="date-history"><span>NESTA DATA DA NOSSA HISTÓRIA</span><p>{selectedCalendarMemory.description}</p></div>}
                     <h2 id="date-confirm-title">Tem certeza dessa data?</h2>
-                    <div className="date-actions"><button type="button" className="secondary" onClick={() => setDateStep("calendar")}>ESCOLHER OUTRA</button><button type="button" onClick={() => setDateStep("details")}>SIM, TENHO CERTEZA ♡</button></div>
+                    {dateError && <p className="date-error" role="alert">{dateError}</p>}
+                    <div className="date-actions"><button type="button" className="secondary" onClick={() => returnToCalendar(selectedDate)}>ESCOLHER OUTRA</button><button type="button" onClick={() => { setDateError(""); setDateStep("details"); }}>SIM, TENHO CERTEZA ♡</button></div>
                   </section>
                 )}
 
                 {dateStep === "details" && (
-                  <form className="date-details" action={feedbackEndpoint || undefined} method="POST" onSubmit={saveDateRequestLocally}>
+                  <form className="date-details" action={feedbackEndpoint || undefined} method="POST" onSubmit={saveDateRequestLocally} aria-busy={dateSaving}>
                     <input type="hidden" name="_subject" value="Vitória escolheu uma data para sair com você ♡" />
                     <input type="hidden" name="_template" value="table" />
                     <input type="hidden" name="_next" value={`${siteUrl}#encontro-enviado`} />
                     <input type="hidden" name="Data escolhida" value={selectedDateLabel} />
-                    <header><span>ENCONTRO ESCOLHIDO</span><h2>{selectedDateLabel}</h2><button type="button" onClick={() => setDateStep("calendar")}>TROCAR DATA</button></header>
-                    <label htmlFor="outing-type">ONDE VOCÊ QUER IR?<select id="outing-type" name="Tipo de passeio" defaultValue="" required><option value="" disabled>Escolha uma ideia...</option><option>Restaurante</option><option>Cinema</option><option>Parque ou praia</option><option>Café ou confeitaria</option><option>Passeio surpresa</option><option>Outro lugar</option></select></label>
-                    <label htmlFor="outing-place">QUAL É O LOCAL?<input id="outing-place" name="Local desejado" minLength={2} maxLength={120} placeholder="Ex.: o nome do restaurante ou lugar" required /></label>
-                    <label className="date-description" htmlFor="outing-description">DESCREVA O LOCAL E O QUE VOCÊ IMAGINOU<textarea id="outing-description" name="Descrição do local" minLength={3} maxLength={1000} placeholder="Conte onde fica, o que gostaria de fazer e qualquer detalhe importante..." required /></label>
-                    <button type="submit" className="date-submit">ENVIAR NOSSO ENCONTRO PARA O VICTOR ♡</button>
-                    {dateRequestSaved && <p className="date-saved" role="status">Pedido guardado neste computador.</p>}
+                    <input type="hidden" name="Data ISO" value={selectedDate} />
+                    <header><span>ENCONTRO ESCOLHIDO</span><h2>{selectedDateLabel}</h2><button type="button" onClick={() => returnToCalendar(selectedDate)}>TROCAR DATA</button></header>
+                    <label htmlFor="outing-type">ONDE VOCÊ QUER IR?<select id="outing-type" name="Tipo de passeio" defaultValue="" required disabled={dateSaving}><option value="" disabled>Escolha uma ideia...</option><option>Restaurante</option><option>Cinema</option><option>Parque ou praia</option><option>Café ou confeitaria</option><option>Passeio surpresa</option><option>Outro lugar</option></select></label>
+                    <label htmlFor="outing-place">QUAL É O LOCAL?<input id="outing-place" name="Local desejado" minLength={2} maxLength={120} placeholder="Ex.: o nome do restaurante ou lugar" required disabled={dateSaving} /></label>
+                    <label className="date-description" htmlFor="outing-description">DESCREVA O LOCAL E O QUE VOCÊ IMAGINOU<textarea id="outing-description" name="Descrição do local" minLength={3} maxLength={1000} placeholder="Conte onde fica, o que gostaria de fazer e qualquer detalhe importante..." required disabled={dateSaving} /></label>
+                    {dateError && <p className="date-error" role="alert">{dateError}</p>}
+                    <button type="submit" className="date-submit" disabled={dateSaving}>{dateSaving ? "ENVIANDO..." : "ENVIAR NOSSO ENCONTRO PARA O VICTOR ♡"}</button>
                   </form>
+                )}
+
+                {dateStep === "record" && (
+                  <section className="date-record" aria-labelledby="date-record-title">
+                    <header>
+                      <div><span>{recordCalendarMemory ? "ENCONTRO VIVIDO" : "ENCONTRO AGENDADO"}</span><h2 id="date-record-title">{recordDateLabel}</h2></div>
+                      <button ref={recordCloseButton} type="button" onClick={closeDateRecord} aria-label="Fechar detalhes do encontro">×</button>
+                    </header>
+                    {recordCalendarMemory ? (
+                      <article className="date-record-copy"><span aria-hidden="true">✿</span><p>{recordCalendarMemory.description || "Ainda não há uma descrição cadastrada para esta lembrança."}</p></article>
+                    ) : recordScheduledEncounter ? (
+                      <dl>
+                        <div><dt>PASSEIO</dt><dd>{recordScheduledEncounter.outing}</dd></div>
+                        <div><dt>LOCAL</dt><dd>{recordScheduledEncounter.place}</dd></div>
+                        <div><dt>COMO VOCÊ IMAGINOU</dt><dd>{recordScheduledEncounter.description || "Nenhuma descrição foi cadastrada."}</dd></div>
+                      </dl>
+                    ) : (
+                      <p className="date-error" role="status">Este encontro não está mais disponível.</p>
+                    )}
+                    {dateRequestSaved && recordScheduledEncounter && <p className="date-saved" role="status">Pedido guardado neste computador.</p>}
+                    <button type="button" className="date-record-back" onClick={closeDateRecord}>VOLTAR AO CALENDÁRIO</button>
+                  </section>
                 )}
               </div>
             </section>
@@ -713,7 +945,7 @@ export default function MemoryExperience() {
           <button type="button" className="dock-heart" onClick={() => chooseSong(4)}><span aria-hidden="true">♡</span><strong>Nossa música</strong></button>
           <button type="button" onClick={() => show("letter")}><span aria-hidden="true">✉</span><strong>Carta</strong></button>
           <button type="button" onClick={() => show("response")}><span aria-hidden="true">✎</span><strong>Responder</strong></button>
-          <button type="button" className="dock-date" onClick={() => show("date")}><span aria-hidden="true">17</span><strong>Encontro</strong></button>
+          <button type="button" className="dock-date" onClick={() => { setDateStep("calendar"); setDateError(""); show("date"); }}><span aria-hidden="true">17</span><strong>Encontro</strong></button>
         </nav>
       </main>
     </>
