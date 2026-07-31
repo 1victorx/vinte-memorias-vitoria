@@ -2121,15 +2121,7 @@ body * {
   .mouse-ambience { display: none; }
   .wallpaper::before,
   .wallpaper::after,
-  .desktop-stamp,
-  .os-window,
-  .desktop-dock button,
-  .desktop-dock span,
-  .desktop-quick-player,
-  .quick-player-disc,
-  .photo-frame img,
-  .archive-thumb,
-  .calendar-day { transition: none !important; transform: none !important; }
+  .desktop-stamp { transition: none !important; transform: none !important; }
   .os-window::before,
   .desktop-quick-player::before { display: none; }
 }
@@ -2139,4 +2131,214 @@ body * {
   .system-brand:hover > span { transform: rotate(18deg) scale(1.12); background: var(--berry); }
   .window-bar strong { transition: letter-spacing 180ms ease, color 180ms ease; }
   .os-window.is-mouse-lit .window-bar strong { color: #8f2f59; letter-spacing: .035em; }
+}
+
+/* Explicit CSS hover motion and layered depth */
+@media (min-width: 900px) {
+  .os-window {
+    box-shadow:
+      9px 10px 0 rgba(94, 37, 65, .26),
+      16px 19px 0 rgba(169, 52, 103, .08),
+      0 28px 58px rgba(69, 29, 49, .24);
+  }
+  .os-window:hover,
+  .os-window:focus-within {
+    box-shadow:
+      7px 8px 0 rgba(94, 37, 65, .34),
+      13px 16px 0 rgba(169, 52, 103, .12),
+      0 34px 70px rgba(69, 29, 49, .3);
+  }
+
+  .desktop-dock {
+    box-shadow:
+      0 -3px 0 rgba(169, 52, 103, .18),
+      0 -13px 32px rgba(73, 30, 51, .2);
+  }
+  .desktop-quick-player {
+    box-shadow:
+      6px 8px 0 rgba(102, 43, 70, .2),
+      11px 15px 0 rgba(169, 52, 103, .08),
+      0 24px 46px rgba(69, 29, 49, .28);
+  }
+
+  .desktop-dock button,
+  .disc-item,
+  .archive-list button,
+  .calendar-day,
+  .memory-toolbar button,
+  .player-controls button,
+  .quick-player-controls button,
+  .window-actions button,
+  .photo-strip button,
+  .photo-arrow,
+  .track-link,
+  .secret-file > button,
+  .date-actions button,
+  .date-submit,
+  .date-record-back,
+  .date-record header button,
+  .response-window form > button,
+  .welcome-yes {
+    transform-origin: center;
+    transition:
+      transform 220ms cubic-bezier(.2, .85, .25, 1.18),
+      box-shadow 220ms ease,
+      background-color 170ms ease,
+      border-color 170ms ease,
+      color 170ms ease,
+      filter 220ms ease;
+    will-change: transform;
+  }
+
+  .desktop-dock button:hover,
+  .desktop-dock button:focus-visible {
+    z-index: 4;
+    transform: translateY(-13px) scale(1.07);
+    background: #fff7fa;
+    box-shadow:
+      0 8px 0 rgba(169, 52, 103, .2),
+      0 18px 28px rgba(74, 29, 51, .25);
+  }
+  .desktop-dock button:hover span,
+  .desktop-dock button:focus-visible span {
+    transform: translateY(-3px) rotate(-8deg) scale(1.2);
+    background: #f7c4d4;
+    box-shadow: 3px 5px 0 rgba(111, 42, 74, .2);
+  }
+  .desktop-dock button:nth-child(even):hover span,
+  .desktop-dock button:nth-child(even):focus-visible span { transform: translateY(-3px) rotate(8deg) scale(1.2); }
+
+  .disc-item {
+    position: relative;
+    border-radius: 8px 3px 8px 3px;
+  }
+  .disc-item:hover,
+  .disc-item:focus-visible {
+    z-index: 3;
+    border-color: #7d294c;
+    background: #fff4f8;
+    transform: translateY(-8px) rotate(-1.4deg) scale(1.045);
+    box-shadow:
+      5px 7px 0 rgba(125, 41, 76, .24),
+      0 15px 26px rgba(73, 30, 51, .2);
+  }
+  .disc-item:nth-child(even):hover,
+  .disc-item:nth-child(even):focus-visible { transform: translateY(-8px) rotate(1.4deg) scale(1.045); }
+  .compact-disc {
+    transition: transform 300ms cubic-bezier(.2, .85, .25, 1.2), box-shadow 220ms ease, filter 220ms ease;
+  }
+  .disc-item:hover .compact-disc,
+  .disc-item:focus-visible .compact-disc {
+    transform: rotate(22deg) scale(1.14);
+    box-shadow: inset 0 0 0 4px rgba(255,255,255,.46), 4px 6px 0 rgba(45, 26, 38, .2);
+    filter: saturate(1.2) contrast(1.05);
+  }
+
+  .archive-list button:hover,
+  .archive-list button:focus-visible {
+    z-index: 2;
+    border-color: #7d294c;
+    background: #fff4f8;
+    transform: translateX(-6px) translateY(-2px);
+    box-shadow:
+      6px 6px 0 rgba(125, 41, 76, .2),
+      0 12px 22px rgba(73, 30, 51, .16);
+  }
+  .archive-list button:hover .archive-thumb,
+  .archive-list button:focus-visible .archive-thumb {
+    transform: rotate(-5deg) scale(1.12);
+    box-shadow: 4px 6px 0 rgba(101, 42, 70, .24);
+  }
+
+  .calendar-day:not(.is-disabled):hover,
+  .calendar-day:not(.is-disabled):focus-visible {
+    z-index: 3;
+    border-color: #7d294c;
+    transform: translateY(-7px) rotate(-1deg) scale(1.055);
+    box-shadow:
+      4px 7px 0 rgba(125, 41, 76, .24),
+      0 14px 24px rgba(73, 30, 51, .18);
+  }
+  .calendar-day:nth-child(even):not(.is-disabled):hover,
+  .calendar-day:nth-child(even):not(.is-disabled):focus-visible { transform: translateY(-7px) rotate(1deg) scale(1.055); }
+  .calendar-day:not(.is-disabled):hover small,
+  .calendar-day:not(.is-disabled):focus-visible small { transform: scale(1.25); }
+  .calendar-day small { transition: transform 180ms ease, opacity 180ms ease; }
+
+  .memory-toolbar button:hover,
+  .memory-toolbar button:focus-visible,
+  .player-controls button:hover,
+  .player-controls button:focus-visible,
+  .quick-player-controls button:hover,
+  .quick-player-controls button:focus-visible,
+  .window-actions button:hover,
+  .window-actions button:focus-visible,
+  .date-actions button:hover,
+  .date-actions button:focus-visible,
+  .date-submit:hover,
+  .date-submit:focus-visible,
+  .date-record-back:hover,
+  .date-record-back:focus-visible,
+  .date-record header button:hover,
+  .date-record header button:focus-visible,
+  .response-window form > button:hover,
+  .response-window form > button:focus-visible,
+  .track-link:hover,
+  .track-link:focus-visible,
+  .secret-file > button:hover,
+  .secret-file > button:focus-visible {
+    transform: translateY(-4px) scale(1.025);
+    box-shadow:
+      3px 5px 0 rgba(125, 41, 76, .24),
+      0 10px 18px rgba(73, 30, 51, .16);
+    filter: saturate(1.08);
+  }
+
+  .window-actions button:hover,
+  .window-actions button:focus-visible { transform: translateY(-2px) rotate(5deg) scale(1.08); }
+  .window-actions button:last-child:hover,
+  .window-actions button:last-child:focus-visible { transform: translateY(-2px) rotate(-5deg) scale(1.08); }
+
+  .photo-strip button:hover,
+  .photo-strip button:focus-visible {
+    z-index: 3;
+    opacity: 1;
+    transform: translateY(-6px) rotate(-2deg) scale(1.12);
+    box-shadow:
+      3px 6px 0 rgba(125, 41, 76, .24),
+      0 12px 20px rgba(73, 30, 51, .18);
+  }
+  .photo-strip button:nth-child(even):hover,
+  .photo-strip button:nth-child(even):focus-visible { transform: translateY(-6px) rotate(2deg) scale(1.12); }
+  .photo-frame:hover { box-shadow: 7px 9px 0 rgba(125, 41, 76, .2), 0 18px 34px rgba(73, 30, 51, .2); }
+  .photo-frame { transition: box-shadow 260ms ease; }
+  .photo-frame:hover img { transform: scale(1.075); filter: saturate(1.12) contrast(1.035); }
+
+  .desktop-quick-player:hover {
+    transform: translateY(-8px) scale(1.025);
+    box-shadow:
+      5px 7px 0 rgba(102, 43, 70, .28),
+      10px 14px 0 rgba(169, 52, 103, .12),
+      0 30px 55px rgba(69, 29, 49, .34);
+  }
+  .desktop-quick-player:hover .quick-player-disc:not(.is-spinning) { transform: rotate(18deg) scale(1.12); }
+
+  .welcome-yes:hover,
+  .welcome-yes:focus-visible {
+    transform: translateY(-6px) scale(1.08);
+    box-shadow:
+      0 7px 0 #7f244e,
+      0 18px 30px rgba(75, 31, 51, .34);
+    filter: saturate(1.1);
+  }
+
+  .desktop button:active {
+    transition-duration: 70ms;
+    transform: translateY(2px) scale(.97);
+    box-shadow: 0 2px 0 rgba(95, 37, 65, .22);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) and (min-width: 900px) {
+  .desktop button { transition-duration: 90ms; }
 }
