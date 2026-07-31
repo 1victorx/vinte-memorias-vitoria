@@ -21,6 +21,7 @@ import {
   sessionCanEdit,
   type LivingMemoryRecord,
 } from "../lib/living-memories";
+import ThreeRomanticBackground from "./ThreeRomanticBackground";
 
 type WindowName = "music" | "memory" | "archive" | "response" | "date" | "newMemory";
 type Point = { x: number; y: number };
@@ -211,6 +212,7 @@ export default function MemoryExperience() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.72);
+  const [shuffleEnabled, setShuffleEnabled] = useState(false);
   const [secretOpen, setSecretOpen] = useState(false);
   const [savedMessage, setSavedMessage] = useState(false);
   const [dateRequestSaved, setDateRequestSaved] = useState(false);
@@ -277,6 +279,7 @@ export default function MemoryExperience() {
   const memorySavingRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const autoplay = useRef(false);
+  const lastAudibleVolume = useRef(0.72);
   const onlineDisplayMemories: DisplayMemory[] = livingMemories.map((memory, index) => ({
     key: "living-" + memory.id,
     number: memories.length + index + 1,
@@ -528,6 +531,7 @@ export default function MemoryExperience() {
   }, [selectedSong.file]);
 
   useEffect(() => {
+    if (volume > 0) lastAudibleVolume.current = volume;
     if (audioRef.current) audioRef.current.volume = volume;
   }, [volume]);
 
@@ -896,6 +900,29 @@ export default function MemoryExperience() {
     setSelectedSongIndex(normalizedIndex);
   }
 
+  function randomSongIndex() {
+    if (memories.length < 2) return selectedSongIndex;
+    const randomOffset = 1 + Math.floor(Math.random() * (memories.length - 1));
+    return (selectedSongIndex + randomOffset) % memories.length;
+  }
+
+  function moveQuickPlayerSong(direction: -1 | 1) {
+    chooseSongFromQuickPlayer(shuffleEnabled ? randomSongIndex() : selectedSongIndex + direction);
+  }
+
+  function finishSong() {
+    if (!shuffleEnabled) {
+      setPlaying(false);
+      return;
+    }
+    autoplay.current = true;
+    setSelectedSongIndex(randomSongIndex());
+  }
+
+  function toggleMute() {
+    setVolume((current) => current > 0 ? 0 : Math.max(lastAudibleVolume.current, 0.35));
+  }
+
   function seek(value: number) {
     if (audioRef.current && duration) audioRef.current.currentTime = (value / 100) * duration;
   }
@@ -1050,14 +1077,18 @@ export default function MemoryExperience() {
 
   useEffect(() => {
     if (!welcomeVisible || welcomeLeaving) return;
-    const guardNoButton = (event: PointerEvent) => {
+    const guardNoButton = (event: PointerEvent | MouseEvent) => {
       const noButton = noButtonRef.current;
       if (noButton && distanceFromPointToRect(event.clientX, event.clientY, noButton.getBoundingClientRect()) < 280) {
         escapeNoButton(event.clientX, event.clientY);
       }
     };
     window.addEventListener("pointermove", guardNoButton, true);
-    return () => window.removeEventListener("pointermove", guardNoButton, true);
+    window.addEventListener("mousemove", guardNoButton, true);
+    return () => {
+      window.removeEventListener("pointermove", guardNoButton, true);
+      window.removeEventListener("mousemove", guardNoButton, true);
+    };
   }, [escapeNoButton, welcomeLeaving, welcomeVisible]);
 
   function trackWelcomePointer(event: { clientX: number; clientY: number }) {
@@ -1131,6 +1162,8 @@ export default function MemoryExperience() {
             aria-disabled="true"
             onPointerEnter={(event) => escapeNoButton(event.clientX, event.clientY)}
             onPointerMove={(event) => escapeNoButton(event.clientX, event.clientY)}
+            onMouseEnter={(event) => escapeNoButton(event.clientX, event.clientY)}
+            onMouseMove={(event) => escapeNoButton(event.clientX, event.clientY)}
             onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); escapeNoButton(event.clientX, event.clientY); }}
             onClick={(event) => { event.preventDefault(); escapeNoButton(event.clientX, event.clientY); }}
             onFocus={(event) => { event.currentTarget.blur(); escapeNoButton(window.innerWidth / 2, window.innerHeight / 2); }}
@@ -1157,7 +1190,7 @@ export default function MemoryExperience() {
           onPause={() => setPlaying(false)}
           onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
           onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
-          onEnded={() => setPlaying(false)}
+          onEnded={finishSong}
         />
 
         <div ref={ambienceRef} className="mouse-ambience" aria-hidden="true">
@@ -1172,6 +1205,7 @@ export default function MemoryExperience() {
         </header>
 
         <section className="wallpaper" aria-label="Janelas abertas">
+          <ThreeRomanticBackground active={!welcomeVisible} />
           <div className="desktop-stamp" aria-hidden="true"><span>V + V</span><small>DESDE 2025</small></div>
 
           <aside
@@ -1212,11 +1246,23 @@ export default function MemoryExperience() {
               <span>{selectedSong.artist}</span>
             </button>
             <div className="quick-player-controls">
-              <button type="button" onClick={() => chooseSongFromQuickPlayer(selectedSongIndex - 1)} aria-label="Música anterior">‹</button>
+              <button type="button" onClick={() => moveQuickPlayerSong(-1)} aria-label="Música anterior">‹</button>
               <button type="button" onClick={togglePlayback} aria-label={playing ? "Pausar música" : "Tocar música"}>{playing ? "Ⅱ" : "▶"}</button>
-              <button type="button" onClick={() => chooseSongFromQuickPlayer(selectedSongIndex + 1)} aria-label="Próxima música">›</button>
+              <button type="button" onClick={() => moveQuickPlayerSong(1)} aria-label="Próxima música">›</button>
             </div>
-            <input type="range" min="0" max="100" value={progress} onChange={(event) => seek(Number(event.target.value))} aria-label="Posição da música no tocador rápido" />
+            <div className="quick-player-progress">
+              <input type="range" min="0" max="100" value={progress} onChange={(event) => seek(Number(event.target.value))} aria-label="Posição da música no tocador rápido" />
+            </div>
+            <div className="quick-player-options">
+              <button type="button" className="quick-volume-button" onClick={toggleMute} aria-label={volume > 0 ? "Silenciar música" : "Ativar som"} title={volume > 0 ? "Silenciar" : "Ativar som"}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zm11.4.6a4 4 0 0 1 0 4.8M17.8 7a7 7 0 0 1 0 10" /></svg>
+              </button>
+              <input type="range" min="0" max="1" step="0.01" value={volume} onChange={(event) => setVolume(Number(event.target.value))} aria-label="Volume do tocador rápido" />
+              <output aria-live="polite">{Math.round(volume * 100)}%</output>
+              <button type="button" className={`quick-shuffle-button${shuffleEnabled ? " is-active" : ""}`} onClick={() => setShuffleEnabled((current) => !current)} aria-label={shuffleEnabled ? "Desativar músicas aleatórias" : "Ativar músicas aleatórias"} aria-pressed={shuffleEnabled} title="Modo aleatório">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3.2c4.5 0 5 10 9.8 10h3m-3-3 3 3-3 3M4 17h3.2c1.8 0 3-1.6 4-3.5M14 7.8A4.7 4.7 0 0 1 17 7h3m-3-3 3 3-3 3" /></svg>
+              </button>
+            </div>
           </aside>
 
           {visible.music && (

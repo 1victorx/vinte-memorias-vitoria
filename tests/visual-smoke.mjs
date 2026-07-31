@@ -36,6 +36,8 @@ async function enterPresent(page, size) {
   assert.ok(flowerBounds && flowerBounds.x <= 0 && flowerBounds.y <= 0 && flowerBounds.x + flowerBounds.width >= size.width && flowerBounds.y + flowerBounds.height >= size.height, `${size.name}: a fotografia de flores não cobre toda a tela inicial`);
   assert.equal(await flowerPhoto.evaluate((image) => getComputedStyle(image).objectFit), "cover", `${size.name}: a fotografia de fundo não preserva o enquadramento`);
 
+  await page.locator('main[data-interactive="true"]').waitFor();
+
   const noButton = page.locator(".welcome-no");
   assert.equal(await noButton.getAttribute("tabindex"), "-1", `${size.name}: botão Não não pode entrar na navegação por teclado`);
   const noBefore = await noButton.boundingBox();
@@ -76,12 +78,29 @@ for (const size of sizes) {
   const quickPlayer = page.locator(".desktop-quick-player");
   await quickPlayer.waitFor();
   assert.equal(await quickPlayer.isVisible(), true, `${size.name}: tocador rápido não está visível na tela principal`);
+  const threeCanvas = page.locator(".three-romantic-canvas");
+  await threeCanvas.waitFor();
+  const threeBounds = await threeCanvas.boundingBox();
+  assert.ok(threeBounds && threeBounds.width >= size.width && threeBounds.height >= size.height - 30, `${size.name}: fundo Three.js não cobre a área de trabalho`);
+  const quickVolume = quickPlayer.getByRole("slider", { name: /volume do tocador rápido/i });
+  assert.equal(await quickVolume.inputValue(), "0.72", `${size.name}: volume inicial do tocador rápido está incorreto`);
+  await quickPlayer.getByRole("button", { name: /silenciar música/i }).click();
+  assert.equal(await quickVolume.inputValue(), "0", `${size.name}: botão de volume não silenciou o áudio`);
+  await quickPlayer.getByRole("button", { name: /ativar som/i }).click();
+  assert.notEqual(await quickVolume.inputValue(), "0", `${size.name}: botão de volume não restaurou o áudio`);
   assert.equal(await quickPlayer.getByRole("button", { name: /próxima música/i }).count(), 1, `${size.name}: tocador rápido não permite trocar a faixa`);
   assert.equal(await page.getByRole("button", { name: "Carta", exact: true }).count(), 0, `${size.name}: a carta ainda aparece na navegação`);
   await quickPlayer.getByRole("button", { name: /próxima música/i }).click();
   await page.waitForFunction(() => document.querySelector("audio")?.getAttribute("src")?.includes("memory-02.mp3"));
   assert.equal(await page.locator(".music-window").count(), 0, `${size.name}: o tocador rápido abriu a janela de músicas sem pedido`);
   await quickPlayer.getByRole("button", { name: /música anterior/i }).click();
+  const shuffleButton = quickPlayer.getByRole("button", { name: /ativar músicas aleatórias/i });
+  await shuffleButton.click();
+  assert.equal(await shuffleButton.getAttribute("aria-pressed"), "true", `${size.name}: modo aleatório não foi ativado`);
+  const songBeforeShuffle = await page.locator("audio").getAttribute("src");
+  await quickPlayer.getByRole("button", { name: /próxima música/i }).click();
+  await page.waitForFunction((previous) => document.querySelector("audio")?.getAttribute("src") !== previous, songBeforeShuffle);
+  await quickPlayer.getByRole("button", { name: /desativar músicas aleatórias/i }).click();
 
   assert.equal(await page.getByText("20 memórias com o meu amor!", { exact: true }).count(), 1, `${size.name}: cabeçalho novo não foi aplicado`);
   assert.equal(await page.getByText("VITÓRIA OS", { exact: true }).count(), 0, `${size.name}: nome antigo ainda aparece`);
