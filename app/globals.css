@@ -1955,7 +1955,7 @@ body * {
 
 .mouse-ambience {
   position: fixed;
-  z-index: 11;
+  z-index: 180;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
@@ -1967,7 +1967,7 @@ body * {
   width: 420px;
   height: 420px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255,255,255,.3) 0, rgba(255,235,242,.18) 30%, rgba(246,188,203,.08) 52%, transparent 72%);
+  background: radial-gradient(circle, rgba(255,255,255,.46) 0, rgba(255,228,239,.28) 30%, rgba(239,151,183,.13) 52%, transparent 72%);
   filter: blur(7px);
   opacity: 0;
   transform: translate3d(calc(var(--mouse-x) - 210px), calc(var(--mouse-y) - 210px), 0);
@@ -1980,21 +1980,21 @@ body * {
   position: fixed;
   top: 0;
   left: 0;
-  color: rgba(126,38,77,.66);
+  color: rgba(126,38,77,.82);
   opacity: 0;
   text-shadow: 0 1px 0 #fff;
   transform: translate3d(var(--mouse-x), var(--mouse-y), 0);
   transition: opacity 180ms ease, transform 150ms cubic-bezier(.2,.75,.25,1);
   will-change: transform;
 }
-.desktop.has-mouse .mouse-spark { opacity: .75; }
+.desktop.has-mouse .mouse-spark { opacity: .95; }
 .mouse-spark--one {
-  font-size: 13px;
+  font-size: 16px;
   transform: translate3d(calc(var(--mouse-x) + 19px), calc(var(--mouse-y) + 16px), 0) rotate(9deg);
 }
 .mouse-spark--two {
   color: rgba(169,52,103,.5);
-  font-size: 11px;
+  font-size: 14px;
   transform: translate3d(calc(var(--mouse-x) - 27px), calc(var(--mouse-y) + 25px), 0) rotate(-12deg);
   transition-duration: 230ms;
 }
@@ -2004,19 +2004,19 @@ body * {
   --petal-turn: 0deg;
   position: fixed;
   display: block;
-  width: 8px;
-  height: 12px;
+  width: 11px;
+  height: 16px;
   border: 1px solid rgba(111,49,76,.42);
   border-radius: 80% 12% 75% 18%;
   background: #f2a9bf;
   box-shadow: inset 2px 1px 0 rgba(255,255,255,.38);
   opacity: 0;
   transform-origin: center;
-  animation: cursor-petal-fall 820ms cubic-bezier(.18,.62,.35,1) forwards;
+  animation: cursor-petal-fall 980ms cubic-bezier(.18,.62,.35,1) forwards;
   will-change: transform, opacity;
 }
-.cursor-petal--2 { width: 7px; height: 10px; background: #d7bce8; animation-duration: 940ms; }
-.cursor-petal--3 { width: 9px; height: 9px; border-radius: 70% 20% 70% 20%; background: #f4dca0; animation-duration: 880ms; }
+.cursor-petal--2 { width: 9px; height: 13px; background: #d7bce8; animation-duration: 1100ms; }
+.cursor-petal--3 { width: 12px; height: 12px; border-radius: 70% 20% 70% 20%; background: #f4dca0; animation-duration: 1040ms; }
 
 .os-window::before,
 .desktop-quick-player::before {
@@ -2047,7 +2047,7 @@ body * {
 }
 .desktop-stamp:hover { color: rgba(169,52,103,.72); border-color: rgba(169,52,103,.55); }
 
-@media (hover: hover) and (pointer: fine) {
+@media (min-width: 900px) {
   .os-window {
     transition: box-shadow 170ms ease, filter 170ms ease;
   }
@@ -2109,7 +2109,7 @@ body * {
 @keyframes cursor-petal-fall {
   0% { opacity: 0; transform: translate3d(-50%, -50%, 0) rotate(var(--petal-turn)) scale(.45); }
   16% { opacity: .9; }
-  100% { opacity: 0; transform: translate3d(calc(-50% + var(--petal-drift)), 43px, 0) rotate(calc(var(--petal-turn) + 150deg)) scale(1.05); }
+  100% { opacity: 0; transform: translate3d(calc(-50% + var(--petal-drift)), 58px, 0) rotate(calc(var(--petal-turn) + 190deg)) scale(1.1); }
 }
 @keyframes mouse-heartbeat {
   0%, 100% { transform: scale(1.13); }
@@ -2132,4 +2132,11 @@ body * {
   .calendar-day { transition: none !important; transform: none !important; }
   .os-window::before,
   .desktop-quick-player::before { display: none; }
+}
+
+@media (min-width: 900px) and (prefers-reduced-motion: no-preference) {
+  .system-brand > span { transition: transform 220ms cubic-bezier(.2,.9,.2,1.25), background-color 180ms ease; }
+  .system-brand:hover > span { transform: rotate(18deg) scale(1.12); background: var(--berry); }
+  .window-bar strong { transition: letter-spacing 180ms ease, color 180ms ease; }
+  .os-window.is-mouse-lit .window-bar strong { color: #8f2f59; letter-spacing: .035em; }
 }

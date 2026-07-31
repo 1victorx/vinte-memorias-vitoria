@@ -286,8 +286,7 @@ export default function MemoryExperience() {
     if (!desktop || !ambience || welcomeVisible || welcomeLeaving) return;
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
-    if (reducedMotion.matches || !finePointer.matches) return;
+    if (reducedMotion.matches) return;
 
     let frame = 0;
     let latestX = window.innerWidth / 2;
@@ -335,7 +334,7 @@ export default function MemoryExperience() {
 
       const now = performance.now();
       const travelled = Math.hypot(latestX - lastPetalX, latestY - lastPetalY);
-      if (travelled < 58 || now - lastPetalAt < 85) return;
+      if (travelled < 30 || now - lastPetalAt < 55) return;
 
       lastPetalX = latestX;
       lastPetalY = latestY;
