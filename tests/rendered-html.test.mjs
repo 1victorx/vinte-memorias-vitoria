@@ -147,6 +147,8 @@ test("inclui a fotografia fornecida e as regras locais do calendário", async ()
   assert.match(component, /dateSavingRef\.current/);
   assert.match(component, /encontros-agendados-vitoria/);
   assert.match(component, /desktop-quick-player/);
+  assert.match(component, /mouse-ambience/);
+  assert.match(component, /cursor-petal/);
   assert.match(component, /kind: isPastLocalDate\(selectedDate\) \? "lived" : "planned"/);
   assert.doesNotMatch(component, /CARTA_FINAL|show\("letter"\)|visible\.letter/);
   assert.doesNotMatch(component, /memory-01-05\.jpg/);

@@ -213,6 +213,9 @@ export default function MemoryExperience() {
   const lastEscapeTime = useRef(Number.NEGATIVE_INFINITY);
   const escapeCount = useRef(0);
   const welcomeTimer = useRef<number | null>(null);
+  const desktopRef = useRef<HTMLElement>(null);
+  const ambienceRef = useRef<HTMLDivElement>(null);
+  const mousePetalCount = useRef(0);
   const dragState = useRef<DragState | null>(null);
   const recordCloseButton = useRef<HTMLButtonElement>(null);
   const dateSavingRef = useRef(false);
@@ -276,6 +279,100 @@ export default function MemoryExperience() {
     const timer = window.setInterval(update, 30_000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    const desktop = desktopRef.current;
+    const ambience = ambienceRef.current;
+    if (!desktop || !ambience || welcomeVisible || welcomeLeaving) return;
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
+    if (reducedMotion.matches || !finePointer.matches) return;
+
+    let frame = 0;
+    let latestX = window.innerWidth / 2;
+    let latestY = window.innerHeight / 2;
+    let lastPetalX = latestX;
+    let lastPetalY = latestY;
+    let lastPetalAt = 0;
+    let litSurface: HTMLElement | null = null;
+
+    const paintPointer = () => {
+      frame = 0;
+      const normalizedX = latestX / window.innerWidth - 0.5;
+      const normalizedY = latestY / window.innerHeight - 0.5;
+      desktop.style.setProperty("--mouse-x", `${latestX}px`);
+      desktop.style.setProperty("--mouse-y", `${latestY}px`);
+      desktop.style.setProperty("--mouse-shift-x", `${normalizedX * 17}px`);
+      desktop.style.setProperty("--mouse-shift-y", `${normalizedY * 13}px`);
+      desktop.style.setProperty("--mouse-shift-x-reverse", `${normalizedX * -13}px`);
+      desktop.style.setProperty("--mouse-shift-y-reverse", `${normalizedY * -10}px`);
+    };
+
+    const leaveSurface = () => {
+      litSurface?.classList.remove("is-mouse-lit");
+      litSurface = null;
+    };
+
+    const followPointer = (event: PointerEvent) => {
+      if (event.pointerType && event.pointerType !== "mouse") return;
+      latestX = event.clientX;
+      latestY = event.clientY;
+      if (!frame) frame = window.requestAnimationFrame(paintPointer);
+
+      const target = event.target instanceof Element ? event.target : null;
+      const nextSurface = target?.closest<HTMLElement>(".os-window, .desktop-quick-player") ?? null;
+      if (nextSurface !== litSurface) {
+        leaveSurface();
+        litSurface = nextSurface;
+        litSurface?.classList.add("is-mouse-lit");
+      }
+      if (litSurface) {
+        const rect = litSurface.getBoundingClientRect();
+        litSurface.style.setProperty("--surface-mouse-x", `${latestX - rect.left}px`);
+        litSurface.style.setProperty("--surface-mouse-y", `${latestY - rect.top}px`);
+      }
+
+      const now = performance.now();
+      const travelled = Math.hypot(latestX - lastPetalX, latestY - lastPetalY);
+      if (travelled < 58 || now - lastPetalAt < 85) return;
+
+      lastPetalX = latestX;
+      lastPetalY = latestY;
+      lastPetalAt = now;
+      const petal = document.createElement("i");
+      const variant = mousePetalCount.current % 3;
+      mousePetalCount.current += 1;
+      petal.className = `cursor-petal cursor-petal--${variant + 1}`;
+      petal.style.left = `${latestX}px`;
+      petal.style.top = `${latestY}px`;
+      petal.style.setProperty("--petal-drift", `${Math.round(Math.random() * 34 - 17)}px`);
+      petal.style.setProperty("--petal-turn", `${Math.round(Math.random() * 90 - 45)}deg`);
+      ambience.appendChild(petal);
+      petal.addEventListener("animationend", () => petal.remove(), { once: true });
+      ambience.querySelectorAll(".cursor-petal").forEach((item, index, items) => {
+        if (index < items.length - 14) item.remove();
+      });
+    };
+
+    const resetPointer = () => {
+      desktop.classList.remove("has-mouse");
+      leaveSurface();
+    };
+    const activatePointer = () => desktop.classList.add("has-mouse");
+
+    desktop.addEventListener("pointerenter", activatePointer);
+    desktop.addEventListener("pointermove", followPointer, { passive: true });
+    desktop.addEventListener("pointerleave", resetPointer);
+    return () => {
+      desktop.removeEventListener("pointerenter", activatePointer);
+      desktop.removeEventListener("pointermove", followPointer);
+      desktop.removeEventListener("pointerleave", resetPointer);
+      if (frame) window.cancelAnimationFrame(frame);
+      leaveSurface();
+      ambience.querySelectorAll(".cursor-petal").forEach((petal) => petal.remove());
+    };
+  }, [welcomeLeaving, welcomeVisible]);
 
 
   useEffect(() => {
@@ -689,7 +786,7 @@ export default function MemoryExperience() {
         <p>Abra o link em uma tela maior para explorar todas as janelas.</p>
       </div>
 
-      <main className={`desktop${welcomeVisible ? " is-waiting" : " is-revealed"}`} inert={welcomeVisible ? true : undefined} aria-hidden={welcomeVisible} data-interactive={clock !== "--:--"} aria-label="Área de trabalho das nossas memórias">
+      <main ref={desktopRef} className={`desktop${welcomeVisible ? " is-waiting" : " is-revealed"}`} inert={welcomeVisible ? true : undefined} aria-hidden={welcomeVisible} data-interactive={clock !== "--:--"} aria-label="Área de trabalho das nossas memórias">
         <audio
           ref={audioRef}
           preload="metadata"
@@ -699,6 +796,12 @@ export default function MemoryExperience() {
           onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
           onEnded={() => setPlaying(false)}
         />
+
+        <div ref={ambienceRef} className="mouse-ambience" aria-hidden="true">
+          <span className="mouse-glow" />
+          <span className="mouse-spark mouse-spark--one">✦</span>
+          <span className="mouse-spark mouse-spark--two">♡</span>
+        </div>
 
         <header className="system-bar">
           <div className="system-brand"><span>✿</span><strong>VITÓRIA OS</strong><i>20 memórias para Amor</i></div>
