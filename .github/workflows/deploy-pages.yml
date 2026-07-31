@@ -25,6 +25,8 @@ jobs:
       NEXT_PUBLIC_BASE_PATH: /vinte-memorias-vitoria
       NEXT_PUBLIC_SITE_URL: https://1victorx.github.io/vinte-memorias-vitoria/
       NEXT_PUBLIC_FEEDBACK_ENDPOINT: ${{ secrets.FEEDBACK_ENDPOINT }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
     steps:
       - name: Baixar o projeto
         uses: actions/checkout@v4

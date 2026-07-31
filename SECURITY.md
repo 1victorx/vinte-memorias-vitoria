@@ -25,3 +25,12 @@ há cookies de rastreamento nem ferramentas de analytics.
 Não publique dados pessoais em uma issue pública. Entre em contato diretamente
 com o proprietário do repositório para relatar uma exposição indevida ou outra
 falha.
+
+## Álbum vivo
+
+- A chave Supabase presente no navegador é exclusivamente a chave pública.
+- Criação, alteração e exclusão dependem simultaneamente de sessão autenticada e da lista `site_editors`.
+- RLS permanece habilitado em todas as tabelas expostas.
+- O bucket aceita apenas JPEG, PNG e WebP, limita cada arquivo a 8 MB e exige que o primeiro diretório corresponda ao usuário autenticado.
+- O navegador valida textos, quantidade, tipo e tamanho; constraints e policies repetem os controles no serviço.
+- A chave `service_role` nunca deve ser adicionada ao repositório, ao workflow do Pages ou a variáveis `NEXT_PUBLIC_*`.

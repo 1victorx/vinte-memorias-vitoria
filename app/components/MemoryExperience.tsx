@@ -12,8 +12,17 @@ import {
 import { calendarMemories } from "../data/calendar-memories";
 import { memories } from "../data/memories";
 import { isPastLocalDate, localDateToIso, parseLocalIsoDate } from "../lib/local-date";
+import {
+  getLivingMemoriesClient,
+  livingMemoriesConfigured,
+  livingMemoryBucket,
+  livingPhotoUrl,
+  loadLivingMemories,
+  sessionCanEdit,
+  type LivingMemoryRecord,
+} from "../lib/living-memories";
 
-type WindowName = "music" | "memory" | "archive" | "response" | "date";
+type WindowName = "music" | "memory" | "archive" | "response" | "date" | "newMemory";
 type Point = { x: number; y: number };
 type DragState = {
   name: WindowName;
@@ -37,6 +46,19 @@ type ScheduledEncounter = {
   place: string;
   description: string;
 };
+type DisplayMemory = {
+  key: string;
+  number: number;
+  date: string;
+  title: string;
+  preview: string;
+  story: string;
+  photos: string[];
+  secret: string | null;
+  songIndex: number | null;
+  isLiving: boolean;
+};
+type LivingMemoryStatus = "unconfigured" | "loading" | "ready" | "error";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://1victorx.github.io/vinte-memorias-vitoria/";
@@ -46,6 +68,11 @@ const thumbnailAsset = (path: string) => {
   const filename = path.split("/").pop()?.replace(/\.[^.]+$/, ".webp");
   return asset(`/media/thumbs/${filename}`);
 };
+const displayPhoto = (path: string, thumbnail = false) =>
+  /^https:\/\//i.test(path) ? path : thumbnail ? thumbnailAsset(path) : asset(path);
+const formatLivingMemoryDate = (isoDate: string) =>
+  new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
+    .format(new Date(isoDate + "T12:00:00"));
 const encounterStorageKey = "encontros-agendados-vitoria";
 
 function isScheduledEncounter(value: unknown): value is ScheduledEncounter {
@@ -198,11 +225,23 @@ export default function MemoryExperience() {
   const [calendarMonth, setCalendarMonth] = useState({ year: 2026, month: 7 });
   const [clock, setClock] = useState("--:--");
   const [quickPlayerPosition, setQuickPlayerPosition] = useState<Point | null>(null);
+  const [livingMemories, setLivingMemories] = useState<LivingMemoryRecord[]>([]);
+  const [livingStatus, setLivingStatus] = useState<LivingMemoryStatus>(
+    livingMemoriesConfigured ? "loading" : "unconfigured",
+  );
+  const [editorEmail, setEditorEmail] = useState("");
+  const [signedInEmail, setSignedInEmail] = useState("");
+  const [canEditMemories, setCanEditMemories] = useState(false);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authMessage, setAuthMessage] = useState("");
+  const [livingError, setLivingError] = useState("");
+  const [memorySaving, setMemorySaving] = useState(false);
+  const [selectedUploadNames, setSelectedUploadNames] = useState<string[]>([]);
   const [visible, setVisible] = useState<Record<WindowName, boolean>>({
-    music: false, memory: false, archive: false, response: false, date: false,
+    music: false, memory: false, archive: false, response: false, date: false, newMemory: false,
   });
   const [layers, setLayers] = useState<Record<WindowName, number>>({
-    music: 12, memory: 14, archive: 13, response: 16, date: 17,
+    music: 12, memory: 14, archive: 13, response: 16, date: 17, newMemory: 18,
   });
   const [positions, setPositions] = useState<Record<WindowName, Point | null>>({
     music: null,
@@ -210,6 +249,7 @@ export default function MemoryExperience() {
     archive: null,
     response: null,
     date: null,
+    newMemory: null,
   });
   const [maximized, setMaximized] = useState<Record<WindowName, boolean>>({
     music: false,
@@ -217,6 +257,7 @@ export default function MemoryExperience() {
     archive: false,
     response: false,
     date: false,
+    newMemory: false,
   });
   const welcomeRef = useRef<HTMLElement>(null);
   const welcomeCopyRef = useRef<HTMLDivElement>(null);
@@ -233,9 +274,40 @@ export default function MemoryExperience() {
   const quickPlayerDrag = useRef<QuickPlayerDragState | null>(null);
   const recordCloseButton = useRef<HTMLButtonElement>(null);
   const dateSavingRef = useRef(false);
+  const memorySavingRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const autoplay = useRef(false);
-  const activeMemory = memories[activeMemoryIndex];
+  const onlineDisplayMemories: DisplayMemory[] = livingMemories.map((memory, index) => ({
+    key: "living-" + memory.id,
+    number: memories.length + index + 1,
+    date: formatLivingMemoryDate(memory.memory_date),
+    title: memory.title,
+    preview: memory.preview,
+    story: memory.story,
+    photos: memory.photo_paths.map((path) => {
+      const client = getLivingMemoriesClient();
+      return client ? livingPhotoUrl(client, path) : "";
+    }).filter(Boolean),
+    secret: memory.secret,
+    songIndex: null,
+    isLiving: true,
+  }));
+  const allMemories: DisplayMemory[] = [
+    ...memories.map((memory, index) => ({
+      key: "original-" + memory.id,
+      number: memory.id,
+      date: memory.date,
+      title: memory.title,
+      preview: memory.preview,
+      story: memory.story,
+      photos: memory.photos,
+      secret: memory.secret,
+      songIndex: index,
+      isLiving: false,
+    })),
+    ...onlineDisplayMemories,
+  ];
+  const activeMemory = allMemories[Math.min(activeMemoryIndex, allMemories.length - 1)];
   const selectedSong = memories[selectedSongIndex].song;
   const progress = duration ? (currentTime / duration) * 100 : 0;
   const daysInCalendarMonth = new Date(calendarMonth.year, calendarMonth.month + 1, 0).getDate();
@@ -256,6 +328,62 @@ export default function MemoryExperience() {
 
   useEffect(() => () => {
     if (welcomeTimer.current) window.clearTimeout(welcomeTimer.current);
+  }, []);
+
+  useEffect(() => {
+    const client = getLivingMemoriesClient();
+    if (!client) return;
+
+    let active = true;
+    const syncMemories = async () => {
+      try {
+        const records = await loadLivingMemories(client);
+        if (!active) return;
+        setLivingMemories(records);
+        setLivingStatus("ready");
+        setLivingError("");
+      } catch {
+        if (!active) return;
+        setLivingStatus("error");
+        setLivingError("Não foi possível carregar os novos capítulos agora.");
+      }
+    };
+    const syncEditor = async (session: Awaited<ReturnType<typeof client.auth.getSession>>["data"]["session"]) => {
+      if (!active) return;
+      setSignedInEmail(session?.user.email ?? "");
+      if (!session) {
+        setCanEditMemories(false);
+        return;
+      }
+      try {
+        const allowed = await sessionCanEdit(client, session);
+        if (!active) return;
+        setCanEditMemories(allowed);
+        if (!allowed) setAuthMessage("Este e-mail entrou, mas ainda não está autorizado a editar o álbum.");
+      } catch {
+        if (!active) return;
+        setCanEditMemories(false);
+        setAuthMessage("Não foi possível confirmar a permissão deste e-mail.");
+      }
+    };
+
+    void syncMemories();
+    void client.auth.getSession().then(({ data }) => syncEditor(data.session));
+    const { data: listener } = client.auth.onAuthStateChange((_event, session) => {
+      void syncEditor(session);
+    });
+    const liveChannel = client
+      .channel("living-memories-public")
+      .on("postgres_changes", { event: "*", schema: "public", table: "living_memories" }, () => {
+        void syncMemories();
+      })
+      .subscribe();
+
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+      void client.removeChannel(liveChannel);
+    };
   }, []);
 
   useEffect(() => {
@@ -569,6 +697,148 @@ export default function MemoryExperience() {
     player.style.removeProperty("bottom");
   }
 
+  async function refreshLivingMemories() {
+    const client = getLivingMemoriesClient();
+    if (!client) return;
+    try {
+      const records = await loadLivingMemories(client);
+      setLivingMemories(records);
+      setLivingStatus("ready");
+      setLivingError("");
+    } catch {
+      setLivingStatus("error");
+      setLivingError("A conexão com o nosso álbum online falhou. Tente novamente.");
+    }
+  }
+
+  async function requestMemoryLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const client = getLivingMemoriesClient();
+    const email = editorEmail.trim().toLowerCase();
+    if (!client || !/^\S+@\S+\.\S+$/.test(email)) {
+      setAuthMessage("Digite um e-mail válido para receber o acesso.");
+      return;
+    }
+    setAuthBusy(true);
+    setAuthMessage("");
+    const { error } = await client.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: siteUrl },
+    });
+    setAuthBusy(false);
+    setAuthMessage(
+      error
+        ? "Não foi possível enviar o link agora. Confira o e-mail e tente novamente."
+        : "Link enviado! Abra o e-mail neste computador para liberar a escrita.",
+    );
+  }
+
+  async function signOutMemoryEditor() {
+    const client = getLivingMemoriesClient();
+    if (!client) return;
+    setAuthBusy(true);
+    await client.auth.signOut();
+    setCanEditMemories(false);
+    setSignedInEmail("");
+    setAuthMessage("Acesso encerrado com segurança.");
+    setAuthBusy(false);
+  }
+
+  async function saveLivingMemory(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (memorySavingRef.current) return;
+    const client = getLivingMemoriesClient();
+    if (!client || !canEditMemories) {
+      setLivingError("Entre com um e-mail autorizado antes de guardar uma memória.");
+      return;
+    }
+
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const memoryDate = String(formData.get("memory_date") ?? "");
+    const title = String(formData.get("title") ?? "").trim();
+    const preview = String(formData.get("preview") ?? "").trim();
+    const story = String(formData.get("story") ?? "").trim();
+    const secret = String(formData.get("secret") ?? "").trim();
+    const files = formData.getAll("photos").filter((item): item is File => item instanceof File && item.size > 0);
+    const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+    if (!parseLocalIsoDate(memoryDate) || title.length < 2 || title.length > 100 || preview.length < 3 || preview.length > 180 || story.length < 10 || story.length > 5000) {
+      setLivingError("Revise a data e os textos. O relato precisa ter pelo menos 10 caracteres.");
+      return;
+    }
+    if (secret.length > 300) {
+      setLivingError("A mensagem escondida pode ter no máximo 300 caracteres.");
+      return;
+    }
+    if (files.length < 1 || files.length > 6) {
+      setLivingError("Escolha de uma a seis fotografias para este capítulo.");
+      return;
+    }
+    if (files.some((file) => !allowedTypes.has(file.type) || file.size > 8 * 1024 * 1024)) {
+      setLivingError("Use apenas JPG, PNG ou WebP, com no máximo 8 MB por fotografia.");
+      return;
+    }
+
+    const { data: sessionData } = await client.auth.getSession();
+    const userId = sessionData.session?.user.id;
+    if (!userId) {
+      setCanEditMemories(false);
+      setLivingError("Seu acesso expirou. Entre novamente pelo link enviado ao e-mail.");
+      return;
+    }
+
+    memorySavingRef.current = true;
+    setMemorySaving(true);
+    setLivingError("");
+    const memoryId = crypto.randomUUID();
+    const uploadedPaths: string[] = [];
+    const extensions: Record<string, string> = {
+      "image/jpeg": "jpg",
+      "image/png": "png",
+      "image/webp": "webp",
+    };
+
+    try {
+      for (let index = 0; index < files.length; index += 1) {
+        const file = files[index];
+        const path = userId + "/" + memoryId + "/" + String(index + 1).padStart(2, "0") + "." + extensions[file.type];
+        const { error } = await client.storage.from(livingMemoryBucket).upload(path, file, {
+          cacheControl: "31536000",
+          contentType: file.type,
+          upsert: false,
+        });
+        if (error) throw error;
+        uploadedPaths.push(path);
+      }
+
+      const { error } = await client.from("living_memories").insert({
+        id: memoryId,
+        memory_date: memoryDate,
+        title,
+        preview,
+        story,
+        secret: secret || null,
+        photo_paths: uploadedPaths,
+      });
+      if (error) throw error;
+
+      await refreshLivingMemories();
+      form.reset();
+      setSelectedUploadNames([]);
+      setAuthMessage("Memória guardada online! Ela já apareceu no arquivo do presente. ♡");
+      selectMemory(memories.length + livingMemories.length);
+    } catch {
+      if (uploadedPaths.length) {
+        await client.storage.from(livingMemoryBucket).remove(uploadedPaths);
+      }
+      setLivingError("Não foi possível guardar esta memória. Nada foi publicado; tente novamente.");
+    } finally {
+      memorySavingRef.current = false;
+      setMemorySaving(false);
+    }
+  }
+
   function show(name: WindowName) {
     setVisible((current) => ({ ...current, [name]: true }));
     front(name);
@@ -591,7 +861,7 @@ export default function MemoryExperience() {
   }
 
   function moveMemory(direction: -1 | 1) {
-    selectMemory((activeMemoryIndex + direction + memories.length) % memories.length);
+    selectMemory((activeMemoryIndex + direction + allMemories.length) % allMemories.length);
   }
 
   function movePhoto(direction: -1 | 1) {
@@ -983,30 +1253,32 @@ export default function MemoryExperience() {
           )}
 
           {visible.memory && (
-            <article className={`os-window memory-window${maximized.memory ? " is-maximized" : ""}`} style={windowStyle("memory")} onPointerDown={() => front("memory")} aria-label={`Memória ${activeMemory.id}: ${activeMemory.title}`}>
-              <WindowBar title={`MEMÓRIA_${activeMemory.id.toString().padStart(2, "0")}.TXT`} onClose={() => close("memory")} maximized={maximized.memory} onToggleMaximize={() => toggleMaximize("memory")} onDragStart={(event) => startDrag("memory", event)} onDragMove={dragWindow} onDragEnd={endDrag} onNudge={(x, y, bar) => nudgeWindow("memory", x, y, bar)} />
-              <div className="memory-toolbar"><button type="button" onClick={() => moveMemory(-1)}>← ANTERIOR</button><span>{activeMemory.id.toString().padStart(2, "0")} / 20</span><button type="button" onClick={() => moveMemory(1)}>PRÓXIMA →</button></div>
+            <article className={`os-window memory-window${maximized.memory ? " is-maximized" : ""}`} style={windowStyle("memory")} onPointerDown={() => front("memory")} aria-label={`Memória ${activeMemory.number}: ${activeMemory.title}`}>
+              <WindowBar title={`MEMÓRIA_${activeMemory.number.toString().padStart(2, "0")}.TXT`} onClose={() => close("memory")} maximized={maximized.memory} onToggleMaximize={() => toggleMaximize("memory")} onDragStart={(event) => startDrag("memory", event)} onDragMove={dragWindow} onDragEnd={endDrag} onNudge={(x, y, bar) => nudgeWindow("memory", x, y, bar)} />
+              <div className="memory-toolbar"><button type="button" onClick={() => moveMemory(-1)}>← ANTERIOR</button><span>{activeMemory.number.toString().padStart(2, "0")} / {allMemories.length}</span><button type="button" onClick={() => moveMemory(1)}>PRÓXIMA →</button></div>
               <div className="memory-workspace">
                 <section className="memory-document">
                   <p className="file-label">NOSSO_ARQUIVO / {activeMemory.date}</p>
                   <h1>{activeMemory.title}</h1>
                   <p className="memory-lead">{activeMemory.preview}</p>
                   <p>{activeMemory.story}</p>
-                  <p className="pending-copy">Este espaço receberá as palavras definitivas do Victor.</p>
-                  <button type="button" className="track-link" onClick={() => chooseSong(activeMemoryIndex)}>♫ ouvir a trilha desta memória</button>
-                  <div className={`secret-file${secretOpen ? " is-open" : ""}`}>
-                    <button type="button" onClick={() => setSecretOpen((current) => !current)} aria-expanded={secretOpen}>{secretOpen ? "FECHAR SEGREDO.TXT" : "ABRIR SEGREDO.TXT"}</button>
-                    {secretOpen && <p>{activeMemory.secret}</p>}
-                  </div>
+                  {!activeMemory.isLiving && <p className="pending-copy">Este espaço receberá as palavras definitivas do Victor.</p>}
+                  {activeMemory.songIndex !== null && <button type="button" className="track-link" onClick={() => chooseSong(activeMemory.songIndex ?? 0)}>♫ ouvir a trilha desta memória</button>}
+                  {activeMemory.secret && (
+                    <div className={`secret-file${secretOpen ? " is-open" : ""}`}>
+                      <button type="button" onClick={() => setSecretOpen((current) => !current)} aria-expanded={secretOpen}>{secretOpen ? "FECHAR SEGREDO.TXT" : "ABRIR SEGREDO.TXT"}</button>
+                      {secretOpen && <p>{activeMemory.secret}</p>}
+                    </div>
+                  )}
                 </section>
                 <section className="photo-viewer" aria-label="Fotografias da memória">
                   <div className="photo-frame">
-                    <Image src={asset(activeMemory.photos[activePhotoIndex])} alt={`${activeMemory.title}, fotografia ${activePhotoIndex + 1}`} fill priority sizes="620px" unoptimized />
+                    <Image src={displayPhoto(activeMemory.photos[activePhotoIndex])} alt={`${activeMemory.title}, fotografia ${activePhotoIndex + 1}`} fill priority sizes="620px" unoptimized />
                     {activeMemory.photos.length > 1 && <><button type="button" className="photo-arrow photo-arrow--left" onClick={() => movePhoto(-1)} aria-label="Fotografia anterior">‹</button><button type="button" className="photo-arrow photo-arrow--right" onClick={() => movePhoto(1)} aria-label="Próxima fotografia">›</button></>}
                     <span className="photo-counter">FOTO {activePhotoIndex + 1}/{activeMemory.photos.length}</span>
                   </div>
                   <div className="photo-strip">
-                    {activeMemory.photos.map((photo, index) => <button type="button" key={photo} className={activePhotoIndex === index ? "is-active" : ""} onClick={() => setActivePhotoIndex(index)} aria-label={`Abrir fotografia ${index + 1}`}><Image src={thumbnailAsset(photo)} alt="" fill sizes="70px" unoptimized /></button>)}
+                    {activeMemory.photos.map((photo, index) => <button type="button" key={photo} className={activePhotoIndex === index ? "is-active" : ""} onClick={() => setActivePhotoIndex(index)} aria-label={`Abrir fotografia ${index + 1}`}><Image src={displayPhoto(photo, true)} alt="" fill sizes="70px" unoptimized /></button>)}
                   </div>
                 </section>
               </div>
@@ -1014,13 +1286,83 @@ export default function MemoryExperience() {
           )}
 
           {visible.archive && (
-            <aside className={`os-window archive-window${maximized.archive ? " is-maximized" : ""}`} style={windowStyle("archive")} onPointerDown={() => front("archive")} aria-label="Arquivo das vinte memórias">
+            <aside className={`os-window archive-window${maximized.archive ? " is-maximized" : ""}`} style={windowStyle("archive")} onPointerDown={() => front("archive")} aria-label="Arquivo das nossas memórias">
               <WindowBar title="FOTOS & TEXTOS" onClose={() => close("archive")} maximized={maximized.archive} onToggleMaximize={() => toggleMaximize("archive")} onDragStart={(event) => startDrag("archive", event)} onDragMove={dragWindow} onDragEnd={endDrag} onNudge={(x, y, bar) => nudgeWindow("archive", x, y, bar)} />
               <div className="archive-header"><span>ÍNDICE CRONOLÓGICO</span><strong>VITÓRIA ♡ VICTOR</strong></div>
               <ol className="archive-list">
-                {memories.map((memory, index) => <li key={memory.id}><button type="button" className={activeMemoryIndex === index ? "is-active" : ""} onClick={() => selectMemory(index)}><span className="archive-thumb"><Image src={thumbnailAsset(memory.photos[0])} alt="" fill sizes="54px" unoptimized /></span><span><small>{memory.date}</small><strong>{memory.id.toString().padStart(2, "0")}. {memory.title}</strong></span></button></li>)}
+                {allMemories.map((memory, index) => <li key={memory.key}><button type="button" className={activeMemoryIndex === index ? "is-active" : ""} onClick={() => selectMemory(index)}><span className="archive-thumb"><Image src={displayPhoto(memory.photos[0], true)} alt="" fill sizes="54px" unoptimized /></span><span><small>{memory.date}{memory.isLiving ? " · NOVO CAPÍTULO" : ""}</small><strong>{memory.number.toString().padStart(2, "0")}. {memory.title}</strong></span></button></li>)}
               </ol>
             </aside>
+          )}
+
+          {visible.newMemory && (
+            <section className={`os-window new-memory-window${maximized.newMemory ? " is-maximized" : ""}`} style={windowStyle("newMemory")} onPointerDown={() => front("newMemory")} aria-label="Adicionar uma nova memória">
+              <WindowBar title="CONTINUAR_NOSSA_HISTÓRIA.EXE" onClose={() => close("newMemory")} maximized={maximized.newMemory} onToggleMaximize={() => toggleMaximize("newMemory")} onDragStart={(event) => startDrag("newMemory", event)} onDragMove={dragWindow} onDragEnd={endDrag} onNudge={(x, y, bar) => nudgeWindow("newMemory", x, y, bar)} />
+              <div className="new-memory-content">
+                <header className="new-memory-intro">
+                  <span>O ÁLBUM CONTINUA VIVO</span>
+                  <h2>Guardar um novo capítulo</h2>
+                  <p>As memórias adicionadas aqui ficam online e aparecem no arquivo para vocês dois, em qualquer computador.</p>
+                  <div className={`cloud-status cloud-status--${livingStatus}`} role="status">
+                    <i aria-hidden="true">{livingStatus === "ready" ? "●" : livingStatus === "loading" ? "◌" : "!"}</i>
+                    {livingStatus === "ready" && "Álbum online conectado"}
+                    {livingStatus === "loading" && "Conectando ao álbum online..."}
+                    {livingStatus === "error" && "Álbum online temporariamente indisponível"}
+                    {livingStatus === "unconfigured" && "Armazenamento online aguardando configuração"}
+                  </div>
+                </header>
+
+                {!livingMemoriesConfigured ? (
+                  <section className="memory-setup-note">
+                    <strong>FALTA CONECTAR O ARMAZENAMENTO GRATUITO</strong>
+                    <p>A interface está pronta. Assim que o Supabase for configurado, o login e o formulário serão liberados automaticamente.</p>
+                  </section>
+                ) : !canEditMemories ? (
+                  <form className="memory-login" onSubmit={requestMemoryLogin}>
+                    <label htmlFor="memory-editor-email">E-MAIL AUTORIZADO
+                      <input id="memory-editor-email" type="email" value={editorEmail} onChange={(event) => setEditorEmail(event.target.value)} autoComplete="email" maxLength={254} placeholder="seuemail@exemplo.com" required disabled={authBusy} />
+                    </label>
+                    <button type="submit" disabled={authBusy}>{authBusy ? "ENVIANDO LINK..." : "RECEBER LINK DE ACESSO ♡"}</button>
+                    {signedInEmail && <p className="signed-email">Conectado como {signedInEmail}, sem permissão de edição.</p>}
+                    {authMessage && <p className="memory-form-message" role="status">{authMessage}</p>}
+                  </form>
+                ) : (
+                  <form className="new-memory-form" onSubmit={saveLivingMemory} aria-busy={memorySaving}>
+                    <div className="memory-editor-bar">
+                      <span>EDITANDO COMO <strong>{signedInEmail}</strong></span>
+                      <button type="button" onClick={signOutMemoryEditor} disabled={authBusy || memorySaving}>SAIR</button>
+                    </div>
+                    <div className="new-memory-grid">
+                      <label>DATA DA MEMÓRIA
+                        <input type="date" name="memory_date" required disabled={memorySaving} />
+                      </label>
+                      <label>TÍTULO DO CAPÍTULO
+                        <input name="title" minLength={2} maxLength={100} placeholder="Ex.: A tarde em que..." required disabled={memorySaving} />
+                      </label>
+                      <label className="memory-form-wide">FRASE DE ABERTURA
+                        <input name="preview" minLength={3} maxLength={180} placeholder="Uma frase curta que resume esse momento" required disabled={memorySaving} />
+                      </label>
+                      <label className="memory-form-wide">CONTE A MEMÓRIA
+                        <textarea name="story" minLength={10} maxLength={5000} placeholder="Escreva o que aconteceu e por que esse dia merece ficar guardado..." required disabled={memorySaving} />
+                      </label>
+                      <label className="memory-form-wide">MENSAGEM ESCONDIDA <small>opcional</small>
+                        <input name="secret" maxLength={300} placeholder="Uma frase só para quem abrir o segredo.txt" disabled={memorySaving} />
+                      </label>
+                      <label className="memory-form-wide memory-photo-picker">FOTOGRAFIAS <small>1 a 6 · JPG, PNG ou WebP · até 8 MB cada</small>
+                        <input type="file" name="photos" accept="image/jpeg,image/png,image/webp" multiple required disabled={memorySaving} onChange={(event) => {
+                          const files = Array.from(event.currentTarget.files ?? []);
+                          setSelectedUploadNames(files.slice(0, 6).map((file) => file.name));
+                        }} />
+                        <span>{selectedUploadNames.length ? selectedUploadNames.join(" · ") : "CLIQUE PARA ESCOLHER AS FOTOS"}</span>
+                      </label>
+                    </div>
+                    {livingError && <p className="memory-form-error" role="alert">{livingError}</p>}
+                    {authMessage && <p className="memory-form-message" role="status">{authMessage}</p>}
+                    <button type="submit" className="memory-save-button" disabled={memorySaving}>{memorySaving ? "GUARDANDO FOTOS E TEXTO..." : "GUARDAR NO NOSSO ÁLBUM ♡"}</button>
+                  </form>
+                )}
+              </div>
+            </section>
           )}
 
           {visible.response && (
@@ -1175,7 +1517,7 @@ export default function MemoryExperience() {
           <button type="button" onClick={() => show("memory")}><span aria-hidden="true">▧</span><strong>Memória</strong></button>
           <button type="button" onClick={() => show("archive")}><span aria-hidden="true">▦</span><strong>Arquivo</strong></button>
           <button type="button" className="dock-heart" onClick={() => chooseSongFromQuickPlayer(4)}><span aria-hidden="true">♡</span><strong>Nossa música</strong></button>
-
+          <button type="button" className="dock-new-memory" onClick={() => show("newMemory")}><span aria-hidden="true">＋</span><strong>Nova memória</strong></button>
           <button type="button" onClick={() => show("response")}><span aria-hidden="true">✎</span><strong>Responder</strong></button>
           <button type="button" className="dock-date" onClick={() => { setDateStep("calendar"); setDateError(""); show("date"); }}><span aria-hidden="true">17</span><strong>Encontro</strong></button>
         </nav>

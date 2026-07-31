@@ -44,6 +44,8 @@ test("renderiza a area de trabalho do presente em portugues", async () => {
   assert.match(html, /welcome-flowers\.webp/);
   assert.match(html, /Aplicativos do presente/);
   assert.match(html, /Nossa música/);
+  assert.match(html, /Nova memória/);
+
   assert.doesNotMatch(html, /Your site is taking shape|codex-preview/i);
 });
 
@@ -160,6 +162,11 @@ test("inclui a fotografia fornecida e as regras locais do calendário", async ()
   assert.match(component, /desktop-quick-player/);
   assert.match(component, /quick-player-drag-handle/);
   assert.match(component, /thumbnailAsset/);
+  assert.match(component, /loadLivingMemories/);
+  assert.match(component, /saveLivingMemory/);
+  assert.match(component, /Nova memória/);
+  assert.match(component, /Guardar um novo capítulo/);
+  assert.match(component, /Armazenamento online aguardando configuração/);
   assert.match(component, /dock-heart" onClick=\{\(\) => chooseSongFromQuickPlayer\(4\)\}/);
   assert.match(component, /20 memórias com o meu amor!/);
   assert.doesNotMatch(component, /VITÓRIA OS/);
@@ -171,4 +178,24 @@ test("inclui a fotografia fornecida e as regras locais do calendário", async ()
   assert.match(dateLogic, /new Date\(year, month - 1, day\)/);
   assert.match(dateLogic, /parsed\.setHours\(0, 0, 0, 0\)/);
   assert.match(dateLogic, /parsed\.getTime\(\) < today\.getTime\(\)/);
+});
+test("protege os novos capítulos no banco e no armazenamento", async () => {
+  const migration = await readFile(
+    new URL("../supabase/migrations/202607310001_living_memories.sql", import.meta.url),
+    "utf8",
+  );
+  const client = await readFile(
+    new URL("../app/lib/living-memories.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(migration, /alter table public\.living_memories enable row level security/i);
+  assert.match(migration, /public\.is_site_editor\(\)/);
+  assert.match(migration, /to authenticated[\s\S]*with check \(public\.is_site_editor\(\)/i);
+  assert.match(migration, /file_size_limit[\s\S]*8388608/);
+  assert.match(migration, /image\/jpeg[\s\S]*image\/png[\s\S]*image\/webp/);
+  assert.match(migration, /supabase_realtime/);
+  assert.match(client, /persistSession: true/);
+  assert.match(client, /NEXT_PUBLIC_SUPABASE_ANON_KEY/);
+  assert.doesNotMatch(client, /service_role|SERVICE_ROLE/);
 });

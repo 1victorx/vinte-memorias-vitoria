@@ -22,6 +22,7 @@ romântica inspirada em interfaces antigas, e é publicado gratuitamente pelo Gi
 - Mensagem escondida em cada memória.
 - Janela de fotos e textos com índice cronológico dos 20 capítulos.
 - Janela específica para Vitória responder ao presente; a carta digital foi retirada para dar lugar à versão física.
+- Janela **Nova memória** para continuar o álbum: data, título, abertura, relato, mensagem escondida e até seis fotos, sincronizados online em tempo real.
 - Campo para Vitória enviar uma resposta ao Victor.
 - Janela de encontro com calendário mensal completo: datas passadas livres registram encontros vividos, enquanto hoje e datas futuras marcam os próximos passeios.
 - 36 encontros vividos de 2025 e 2026 já destacados com cor, flor e contorno; novas lembranças e encontros aparecem imediatamente e registros existentes abrem seus detalhes.
@@ -35,13 +36,15 @@ romântica inspirada em interfaces antigas, e é publicado gratuitamente pelo Gi
 - React 19 e TypeScript strict
 - CSS responsivo sem biblioteca visual pesada
 - vinext/Vite para desenvolvimento local
+- Supabase gratuito para login por link, banco de dados, fotos e sincronização em tempo real
 - GitHub Actions e GitHub Pages para publicação
 - Node Test Runner para verificações de conteúdo
 - Playwright Core com Microsoft Edge para testes visuais
 
-O projeto é estático: não existe banco de dados nem autenticação porque essas
-partes do prompt genérico de comércio eletrônico não fazem parte deste
-presente. O envio da resposta utiliza um provedor externo gratuito.
+A interface continua sendo publicada como site estático no GitHub Pages. Apenas
+os novos capítulos usam o Supabase gratuito, com leitura pública e escrita
+protegida por login via link de e-mail e políticas RLS no próprio banco. O envio
+da resposta utiliza um provedor externo gratuito.
 
 ## Estrutura principal
 
@@ -49,6 +52,7 @@ presente. O envio da resposta utiliza um provedor externo gratuito.
 app/
   components/MemoryExperience.tsx  experiência interativa
   data/memories.ts                 textos, datas, músicas e fotos
+  lib/living-memories.ts          cliente seguro do álbum online
   globals.css                      interface desktop e janelas retrô
 public/
   media/photos/                    fotos das memórias e a foto de flores otimizada
@@ -108,6 +112,58 @@ uma nova atualização: eles poderão ser incorporados sem reconstruir o layout.
 Antes da versão-surpresa, confirme as datas das imagens originalmente chamadas
 `02-11-2026.jpg` e `11-10-2026.jpg`, pois elas parecem estar fora da sequência
 cronológica dos demais arquivos.
+
+
+## Álbum vivo e armazenamento gratuito
+
+Os vinte capítulos originais continuam versionados no projeto. A janela **Nova
+memória** adiciona capítulos posteriores sem exigir uma nova publicação. Cada
+capítulo aceita data, título, frase de abertura, relato, mensagem escondida
+opcional e de uma a seis fotografias JPG, PNG ou WebP de até 8 MB cada.
+
+A proteção não depende de uma senha escondida no JavaScript. O Supabase envia
+um link de entrada ao e-mail e as políticas RLS só aceitam escrita dos
+endereços cadastrados em `site_editors`. Visitantes podem ler capítulos
+publicados, mas não criar, alterar ou apagar registros. As fotos usam nomes
+aleatórios e as limitações são repetidas no armazenamento.
+
+### Configuração única do Supabase
+
+1. Crie um projeto no plano gratuito em `https://supabase.com`.
+2. Abra **SQL Editor**, copie e execute
+   `supabase/migrations/202607310001_living_memories.sql`.
+3. Ainda no SQL Editor, autorize os e-mails que poderão escrever:
+
+```sql
+insert into public.site_editors (email) values
+  ('seu-email@exemplo.com'),
+  ('email-da-vitoria@exemplo.com');
+```
+
+Os endereços precisam estar em letras minúsculas.
+
+4. Em **Authentication > URL Configuration**, use como Site URL:
+   `https://1victorx.github.io/vinte-memorias-vitoria/`
+5. Em **Project Settings > API**, copie a Project URL e a chave pública
+   `anon`/`publishable`.
+6. No repositório GitHub, abra **Settings > Secrets and variables > Actions** e
+   crie:
+
+```text
+SUPABASE_URL=Project URL
+SUPABASE_ANON_KEY=chave pública anon/publishable
+```
+
+7. Execute novamente o workflow **Publicar no GitHub Pages**.
+
+Para desenvolvimento local, copie `.env.example` para `.env.local`, preencha
+`NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` e reinicie o
+servidor. A chave pública pode aparecer no navegador; a segurança real está nas
+políticas RLS. Nunca use a chave `service_role` no site ou no GitHub Pages.
+
+Sem essas duas variáveis, o restante do presente continua funcionando e a nova
+janela mostra um aviso de configuração, sem salvar dados apenas localmente ou
+fingir que a memória foi publicada.
 
 ## Resposta por e-mail
 

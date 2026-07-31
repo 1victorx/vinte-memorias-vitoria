@@ -112,6 +112,7 @@ for (const size of sizes) {
     ["Músicas", ".music-window"],
     ["Memória", ".memory-window"],
     ["Arquivo", ".archive-window"],
+    ["Nova memória", ".new-memory-window"],
     ["Responder", ".response-window"],
     ["Encontro", ".date-window"],
   ];
@@ -140,7 +141,7 @@ for (const size of sizes) {
   const dockLabelSize = await page.locator(".desktop-dock strong").first().evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
   assert.ok(dockLabelSize >= 11, `${size.name}: rótulos inferiores continuam pequenos`);
   assert.equal(await page.locator(".large-disc").count(), 1, `${size.name}: CD grande do tocador ausente`);
-  assert.equal(await page.locator(".desktop-dock button").count(), 6, `${size.name}: dock precisa manter as seis funções do presente`);
+  assert.equal(await page.locator(".desktop-dock button").count(), 7, `${size.name}: dock precisa exibir as sete funções do presente`);
 
   const memoryWindow = page.locator(".memory-window");
   const beforeDrag = await memoryWindow.boundingBox();
@@ -274,6 +275,10 @@ for (const size of [
   const dateWindow = page.locator(".date-window");
   const bounds = await dateWindow.boundingBox();
   assert.ok(bounds && bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= size.width && bounds.y + bounds.height <= size.height, `${size.name}: calendário não cabe com zoom ampliado`);
+  await dateWindow.getByRole("button", { name: /fechar/i }).click();
+  await page.locator(".desktop-dock").getByRole("button", { name: "Nova memória", exact: true }).click();
+  const newMemoryBounds = await page.locator(".new-memory-window").boundingBox();
+  assert.ok(newMemoryBounds && newMemoryBounds.x >= 0 && newMemoryBounds.y >= 0 && newMemoryBounds.x + newMemoryBounds.width <= size.width && newMemoryBounds.y + newMemoryBounds.height <= size.height, `${size.name}: nova memória não cabe com zoom ampliado`);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, `${size.name}: zoom causou rolagem horizontal`);
   await page.screenshot({ path: fileURLToPath(new URL(`${size.name}.png`, outputDir)), fullPage: false });
   await context.close();
