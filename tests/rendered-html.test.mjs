@@ -143,9 +143,13 @@ test("inclui a fotografia fornecida e as regras locais do calendário", async ()
   assert.ok(flower.size > 100_000 && flower.size < 400_000);
   assert.match(component, /welcome-flowers\.webp/);
   assert.match(component, /music: false, memory: false, archive: false/);
-  assert.match(component, /disabled=\{isDisabled\}/);
+  assert.doesNotMatch(component, /disabled=\{isDisabled\}/);
   assert.match(component, /dateSavingRef\.current/);
   assert.match(component, /encontros-agendados-vitoria/);
+  assert.match(component, /desktop-quick-player/);
+  assert.match(component, /kind: isPastLocalDate\(selectedDate\) \? "lived" : "planned"/);
+  assert.doesNotMatch(component, /CARTA_FINAL|show\("letter"\)|visible\.letter/);
+  assert.doesNotMatch(component, /memory-01-05\.jpg/);
   assert.match(dateLogic, /new Date\(year, month - 1, day\)/);
   assert.match(dateLogic, /parsed\.setHours\(0, 0, 0, 0\)/);
   assert.match(dateLogic, /parsed\.getTime\(\) < today\.getTime\(\)/);

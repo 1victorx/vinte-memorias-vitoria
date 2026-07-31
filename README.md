@@ -2,29 +2,29 @@
 
 Presente digital de aniversário para Vitória Nicoly Santiago Fernandes:
 um álbum interativo com vinte capítulos, fotografias reais, uma música por
-memória, mensagens escondidas e uma carta de encerramento.
+memória, mensagens escondidas e um calendário de encontros.
 
 O site foi criado exclusivamente para computadores, como uma área de trabalho
 romântica inspirada em interfaces antigas, e é publicado gratuitamente pelo GitHub Pages.
 
 ## Funcionalidades
 
-- Tela de boas-vindas romântica inspirada em praia e flores, com a fotografia real fornecida, transição leve sem filtros pesados e botão Não que foge do cursor.
+- Tela de boas-vindas romântica com a fotografia real de flores ocupando todo o fundo, transição leve e botão Não protegido por uma fuga antecipada do cursor.
 - Área de trabalho retrô iniciada limpa, com todas as janelas fechadas; depois da interação, elas podem ficar sobrepostas e ser arrastadas livremente nos dois eixos.
 - Barras de título movidas pelo mouse ou pelas setas do teclado, com maximização e restauração.
 - Janelas redimensionáveis livremente pelo canto inferior direito.
-- Visual soft-retro legível em zoom de 100%, com cantos moderados, detalhes florais e textura pixelada.
-- 46 fotografias organizadas cronologicamente.
+- Visual soft-retro legível em zoom de 100%, com fonte serifada em toda a interface, cantos moderados, detalhes florais e textura pixelada.
+- 45 fotografias exibidas cronologicamente; a última duplicata da primeira memória foi retirada da galeria.
 - 20 músicas otimizadas para carregamento pela internet.
-- Janela independente para escolher livremente qualquer uma das 20 músicas.
+- Tocador rápido permanente no canto inferior direito, além da janela independente para escolher livremente qualquer uma das 20 músicas.
 - CDs personalizados com fotografias reais de cada memória e um CD grande giratório no tocador.
 - Botão especial para a música **No Escuro**.
 - Mensagem escondida em cada memória.
 - Janela de fotos e textos com índice cronológico dos 20 capítulos.
-- Janelas específicas para a carta final e a resposta.
+- Janela específica para Vitória responder ao presente; a carta digital foi retirada para dar lugar à versão física.
 - Campo para Vitória enviar uma resposta ao Victor.
-- Janela de encontro com calendário mensal completo, confirmação da data, escolha do passeio, persistência local e envio dos detalhes por e-mail.
-- 36 encontros vividos de 2025 e 2026 destacados com cor, flor e contorno; datas passadas vazias ficam bloqueadas e encontros existentes abrem uma consulta segura somente com seus detalhes.
+- Janela de encontro com calendário mensal completo: datas passadas livres registram encontros vividos, enquanto hoje e datas futuras marcam os próximos passeios.
+- 36 encontros vividos de 2025 e 2026 já destacados com cor, flor e contorno; novas lembranças e encontros aparecem imediatamente e registros existentes abrem seus detalhes.
 - Layout testado em 1366 × 768, 1440 × 900, 1536 × 864 e 1920 × 1080, além de equivalentes a zoom de 125% e 150%.
 - Navegação por teclado, foco visível e redução de movimento.
 - Imagem de compartilhamento e metadados para redes sociais.
@@ -51,7 +51,7 @@ app/
   data/memories.ts                 textos, datas, músicas e fotos
   globals.css                      interface desktop e janelas retrô
 public/
-  media/photos/                    46 fotos das memórias e a foto de flores otimizada
+  media/photos/                    fotos das memórias e a foto de flores otimizada
   media/audio/                     20 faixas otimizadas
   og.png                           imagem de compartilhamento
 scripts/
@@ -99,9 +99,8 @@ As 20 memórias ficam em `app/data/memories.ts`. Em cada item, substitua:
 - `story`: texto definitivo da memória;
 - `secret`: mensagem escondida.
 
-A carta fica no bloco `letter-paper` de
-`app/components/MemoryExperience.tsx`. As fotografias e músicas já estão
-associadas a seus capítulos.
+As fotografias e músicas já estão associadas a seus capítulos.
+
 
 Quando os textos forem colocados em `Documents/ArquivosCodex`, basta solicitar
 uma nova atualização: eles poderão ser incorporados sem reconstruir o layout.
@@ -123,7 +122,7 @@ Sem essa configuração, o formulário preserva a mensagem apenas no navegador
 em que ela foi escrita. Como o GitHub Pages é uma hospedagem estática, um
 backend privado exigiria outro serviço.
 
-Os encontros agendados também são guardados no armazenamento local do navegador para aparecerem imediatamente no calendário e impedir uma segunda criação na mesma data. Essa persistência é específica daquele computador; a cópia enviada por e-mail continua sendo o registro acessível ao Victor.
+Os encontros agendados e as lembranças adicionadas também são guardados no armazenamento local do navegador para aparecerem imediatamente no calendário e impedir uma segunda criação na mesma data. Essa persistência é específica daquele computador; a cópia enviada por e-mail continua sendo o registro acessível ao Victor.
 
 ## Publicação
 

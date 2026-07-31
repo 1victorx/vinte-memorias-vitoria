@@ -32,6 +32,9 @@ async function enterPresent(page, size) {
   const photoData = await flowerPhoto.evaluate((image) => ({ src: image.getAttribute("src"), width: image.naturalWidth, height: image.naturalHeight }));
   assert.match(photoData.src ?? "", /welcome-flowers\.webp$/, `${size.name}: a foto de flores fornecida não foi usada`);
   assert.ok(photoData.width >= 800 && photoData.height >= 600 && Math.abs(photoData.width / photoData.height - 4 / 3) < 0.005, `${size.name}: a foto otimizada perdeu resolução ou proporção (${photoData.width}x${photoData.height})`);
+  const flowerBounds = await flowerPhoto.boundingBox();
+  assert.ok(flowerBounds && flowerBounds.x <= 0 && flowerBounds.y <= 0 && flowerBounds.x + flowerBounds.width >= size.width && flowerBounds.y + flowerBounds.height >= size.height, `${size.name}: a fotografia de flores não cobre toda a tela inicial`);
+  assert.equal(await flowerPhoto.evaluate((image) => getComputedStyle(image).objectFit), "cover", `${size.name}: a fotografia de fundo não preserva o enquadramento`);
 
   const noButton = page.locator(".welcome-no");
   assert.equal(await noButton.getAttribute("tabindex"), "-1", `${size.name}: botão Não não pode entrar na navegação por teclado`);
@@ -39,11 +42,13 @@ async function enterPresent(page, size) {
   const yesBefore = await page.getByRole("button", { name: "Sim", exact: true }).boundingBox();
   assert.ok(noBefore && yesBefore, `${size.name}: botões de boas-vindas não puderam ser medidos`);
   assert.equal(overlaps(noBefore, yesBefore), false, `${size.name}: botões Sim e Não estão sobrepostos`);
-  await page.mouse.move(noBefore.x - 30, noBefore.y + noBefore.height / 2, { steps: 4 });
+  const attemptedPointer = { x: noBefore.x + noBefore.width / 2, y: noBefore.y + noBefore.height / 2 };
+  await page.mouse.move(attemptedPointer.x, attemptedPointer.y, { steps: 12 });
   await page.waitForTimeout(180);
   const noAfter = await noButton.boundingBox();
   assert.match((await noButton.getAttribute("style")) ?? "", /left:/, `${size.name}: botão Não não recebeu uma nova posição`);
   assert.ok(noAfter && noAfter.x >= 45 && noAfter.y >= 45 && noAfter.x + noAfter.width <= size.width - 45 && noAfter.y + noAfter.height <= size.height - 45, `${size.name}: botão Não fugiu para fora da área segura`);
+  assert.equal(noAfter && attemptedPointer.x >= noAfter.x && attemptedPointer.x <= noAfter.x + noAfter.width && attemptedPointer.y >= noAfter.y && attemptedPointer.y <= noAfter.y + noAfter.height, false, `${size.name}: botão Não permaneceu sob o cursor`);
   assert.doesNotMatch(await welcome.textContent(), /só existe uma resposta certa/i, `${size.name}: tentativa no Não não alterou a mensagem`);
   await noButton.evaluate((button) => button.click());
   assert.equal(await welcome.isVisible(), true, `${size.name}: botão Não permitiu acessar o presente`);
@@ -68,12 +73,20 @@ for (const size of sizes) {
   await enterPresent(page, size);
   await page.screenshot({ path: fileURLToPath(new URL(`${size.name}-closed.png`, outputDir)), fullPage: false });
 
-  const appChecks = [
-    ["Músicas", ".music-window"],
+  const quickPlayer = page.locator(".desktop-quick-player");
+  await quickPlayer.waitFor();
+  assert.equal(await quickPlayer.isVisible(), true, `${size.name}: tocador rápido não está visível na tela principal`);
+  assert.equal(await quickPlayer.getByRole("button", { name: /próxima música/i }).count(), 1, `${size.name}: tocador rápido não permite trocar a faixa`);
+  assert.equal(await page.getByRole("button", { name: "Carta", exact: true }).count(), 0, `${size.name}: a carta ainda aparece na navegação`);
+  await quickPlayer.getByRole("button", { name: /próxima música/i }).click();
+  await page.waitForFunction(() => document.querySelector("audio")?.getAttribute("src")?.includes("memory-02.mp3"));
+  assert.equal(await page.locator(".music-window").count(), 0, `${size.name}: o tocador rápido abriu a janela de músicas sem pedido`);
+  await quickPlayer.getByRole("button", { name: /música anterior/i }).click();
+
+  const appChecks = [    ["Músicas", ".music-window"],
     ["Memória", ".memory-window"],
     ["Arquivo", ".archive-window"],
     ["Nossa música", ".music-window"],
-    ["Carta", ".letter-window"],
     ["Responder", ".response-window"],
     ["Encontro", ".date-window"],
   ];
@@ -100,7 +113,7 @@ for (const size of sizes) {
   const dockLabelSize = await page.locator(".desktop-dock strong").first().evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
   assert.ok(dockLabelSize >= 11, `${size.name}: rótulos inferiores continuam pequenos`);
   assert.equal(await page.locator(".large-disc").count(), 1, `${size.name}: CD grande do tocador ausente`);
-  assert.equal(await page.locator(".desktop-dock button").count(), 7, `${size.name}: dock precisa conter a aba de encontro`);
+  assert.equal(await page.locator(".desktop-dock button").count(), 6, `${size.name}: dock precisa manter as seis funções do presente`);
 
   const memoryWindow = page.locator(".memory-window");
   const beforeDrag = await memoryWindow.boundingBox();
@@ -144,9 +157,14 @@ for (const size of sizes) {
   await dateWindow.getByRole("button", { name: /mês anterior/i }).click();
   assert.match(await dateWindow.locator(".calendar-toolbar strong").textContent(), /julho de 2026/i, `${size.name}: calendário não navegou até julho`);
   assert.equal(await dateWindow.locator(".calendar-day.has-memory").count(), 3, `${size.name}: julho precisa exibir três lembranças`);
-  assert.equal(await dateWindow.locator('.calendar-day[data-date="2026-07-26"]').isDisabled(), true, `${size.name}: data passada vazia continua agendável`);
-  assert.ok((await dateWindow.locator('.calendar-day[data-date="2026-07-30"]').getAttribute("class"))?.includes("is-today"), `${size.name}: dia atual não está identificado`);
-  assert.equal(await dateWindow.locator('.calendar-day[data-date="2026-07-30"]').isDisabled(), false, `${size.name}: data atual deveria continuar disponível`);
+  assert.equal(await dateWindow.locator('.calendar-day[data-date="2026-07-26"]').isDisabled(), false, `${size.name}: data passada vazia precisa permitir registrar um encontro vivido`);
+  const browserToday = await page.evaluate(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  });
+  const todayButton = dateWindow.locator(`.calendar-day[data-date="${browserToday}"]`);
+  assert.ok((await todayButton.getAttribute("class"))?.includes("is-today"), `${size.name}: dia atual não está identificado`);
+  assert.equal(await todayButton.isDisabled(), false, `${size.name}: data atual deveria continuar disponível`);
 
   const livedDay = dateWindow.locator('.calendar-day[data-memory-date="2026-07-25"]');
   await livedDay.hover();
@@ -160,6 +178,21 @@ for (const size of sizes) {
   await page.keyboard.press("Escape");
   await dateWindow.locator(".calendar-grid").waitFor();
   assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("data-date")), "2026-07-25", `${size.name}: foco não voltou ao dia consultado`);
+
+  if (!requireFeedback) {
+    const emptyPastDay = dateWindow.locator('.calendar-day[data-date="2026-07-26"]');
+    await emptyPastDay.click();
+    await dateWindow.getByRole("heading", { name: /guardar o que aconteceu/i }).waitFor();
+    await dateWindow.getByRole("button", { name: /sim, tenho certeza/i }).click();
+    await dateWindow.getByLabel(/que tipo de encontro foi/i).selectOption({ label: "Cinema" });
+    await dateWindow.getByLabel(/onde nós fomos/i).fill("Cinema do shopping");
+    await dateWindow.getByLabel(/conte o que aconteceu/i).fill("Assistimos a um filme e guardamos mais um dia bonito.");
+    await dateWindow.getByRole("button", { name: /guardar esta lembrança/i }).click();
+    await dateWindow.locator(".date-record").waitFor();
+    assert.match(await dateWindow.locator(".date-record").textContent(), /encontro vivido/i, `${size.name}: encontro passado foi salvo como agendamento futuro`);
+    await dateWindow.getByRole("button", { name: /voltar ao calendário/i }).click();
+    assert.ok((await emptyPastDay.getAttribute("class"))?.includes("has-memory"), `${size.name}: encontro vivido não foi marcado no calendário`);
+  }
 
   await dateWindow.getByRole("button", { name: /próximo mês/i }).click();
   const futureDay = dateWindow.locator('.calendar-day[data-date="2026-08-10"]');
@@ -178,7 +211,7 @@ for (const size of sizes) {
     await dateWindow.locator("form").evaluate((form) => { form.requestSubmit(); form.requestSubmit(); });
     await dateWindow.locator(".date-record").waitFor();
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("encontros-agendados-vitoria") ?? "{}"));
-    assert.deepEqual(Object.keys(stored), ["2026-08-10"], `${size.name}: cliques repetidos duplicaram o encontro`);
+    assert.deepEqual(Object.keys(stored).sort(), ["2026-07-26", "2026-08-10"], `${size.name}: cliques repetidos duplicaram o encontro`);
     await dateWindow.getByRole("button", { name: /voltar ao calendário/i }).click();
     assert.ok((await futureDay.getAttribute("class"))?.includes("has-scheduled"), `${size.name}: calendário não atualizou após salvar`);
     await futureDay.click();
@@ -205,7 +238,9 @@ for (const size of [
   await card.waitFor();
   const cardBounds = await card.boundingBox();
   assert.ok(cardBounds && cardBounds.x >= 0 && cardBounds.y >= 0 && cardBounds.x + cardBounds.width <= size.width && cardBounds.y + cardBounds.height <= size.height, `${size.name}: boas-vindas ultrapassaram a tela`);
-  await page.getByRole("button", { name: "Sim", exact: true }).click();
+  const zoomYesButton = page.getByRole("button", { name: "Sim", exact: true });
+  await page.locator('main[data-interactive="true"]').waitFor();
+  await zoomYesButton.evaluate((button) => button.click());
   await page.locator(".welcome-screen").waitFor({ state: "detached" });
   assert.equal(await page.locator(".os-window").count(), 0, `${size.name}: janela começou aberta`);
   await page.locator(".desktop-dock").getByRole("button", { name: "Encontro", exact: true }).click();

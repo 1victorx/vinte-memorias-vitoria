@@ -13,7 +13,7 @@
 
 * { box-sizing: border-box; }
 html, body { width: 100%; min-height: 100%; margin: 0; }
-body { overflow: hidden; background: var(--pink-soft); color: var(--ink); font-family: "Courier New", monospace; }
+body { overflow: hidden; background: var(--pink-soft); color: var(--ink); font-family: Georgia, "Times New Roman", serif; }
 button, input, textarea { font: inherit; }
 button { color: inherit; }
 
@@ -228,7 +228,7 @@ body {
   padding: 2px 10px;
   background: #fffdf8;
   box-shadow: 0 0 0 3px #fffdf8;
-  font-family: "Courier New", monospace;
+  font-family: Georgia, "Times New Roman", serif;
   font-size: 14px;
   letter-spacing: -.04em;
 }
@@ -645,7 +645,7 @@ input[type="range"]::-webkit-slider-thumb { border-radius: 50% 50% 42% 42%; }
   height: 25px;
   margin: 0;
   border-radius: 6px;
-  font: 700 16px/1 "Courier New", monospace;
+  font: 700 16px/1 Georgia, "Times New Roman", serif;
 }
 .window-grip { border-radius: 5px; }
 .window-toolbar {
@@ -1745,4 +1745,201 @@ input[type="range"]::-webkit-slider-thumb { border-radius: 50% 50% 42% 42%; }
 .welcome-no { top: calc(50% + 225px); left: calc(50% - 73px); }
 @media (min-width: 900px) and (max-width: 1099px), (max-height: 650px) and (min-width: 900px) {
   .welcome-no { top: calc(50% + 155px); left: calc(50% - 73px); }
+}
+/* Requested desktop refinements: full-bleed flowers, serif type and quick player */
+body,
+body * {
+  font-family: Georgia, "Times New Roman", serif !important;
+}
+
+.welcome-screen {
+  background: #4f5e32;
+}
+.welcome-background {
+  position: absolute !important;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 58%;
+  transform: scale(1.015);
+}
+.welcome-screen::before {
+  z-index: 1;
+  inset: 0;
+  height: auto;
+  background:
+    linear-gradient(90deg, rgba(43,38,29,.27), rgba(71,35,51,.08) 42%, rgba(45,36,31,.2)),
+    linear-gradient(180deg, rgba(255,235,242,.12), rgba(50,32,39,.18));
+  clip-path: none;
+}
+.welcome-screen::after {
+  z-index: 2;
+  inset: 0;
+  height: auto;
+  border-radius: 0;
+  background: radial-gradient(ellipse at center, transparent 35%, rgba(38,29,31,.28) 110%);
+  pointer-events: none;
+}
+.welcome-card {
+  display: block;
+  width: min(670px, calc(100% - 180px));
+  min-height: 0;
+  padding: 48px 62px 43px;
+  border-color: rgba(84,45,61,.8);
+  background:
+    radial-gradient(circle at 2px 2px, rgba(169,52,103,.07) 1px, transparent 1.5px) 0 0 / 8px 8px,
+    rgba(255,253,248,.9);
+  box-shadow: 12px 14px 0 rgba(58,35,43,.2), 0 25px 75px rgba(31,23,26,.35);
+  backdrop-filter: blur(5px);
+  text-align: center;
+}
+.welcome-content { text-align: center; }
+.welcome-copy h1 { font-size: clamp(40px, 3.5vw, 50px); }
+.welcome-no {
+  transition: transform 70ms ease;
+}
+
+.welcome-no:hover { transform: rotate(-2deg) scale(1.03); }
+
+.desktop-quick-player {
+  position: absolute;
+  z-index: 190;
+  right: 16px;
+  bottom: 14px;
+  display: grid;
+  width: 286px;
+  height: 74px;
+  grid-template-columns: 58px minmax(0, 1fr) 78px;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 7px 12px;
+  border: 2px solid var(--soft-line);
+  border-radius: 12px 7px 12px 7px;
+  background: rgba(255,253,248,.96);
+  box-shadow: 0 10px 0 rgba(169,52,103,.1), 0 18px 35px rgba(101,42,70,.22);
+}
+.quick-player-disc {
+  position: relative;
+  display: block;
+  width: 52px;
+  height: 52px;
+  border: 2px solid #211820;
+  border-radius: 50%;
+  background: #e8b1c2;
+  box-shadow: 3px 3px 0 rgba(25,19,33,.22);
+  overflow: hidden;
+}
+.quick-player-disc img {
+  border-radius: 50%;
+  object-fit: cover;
+  image-rendering: pixelated;
+  filter: contrast(1.12) saturate(.9);
+}
+.quick-player-disc::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-radial-gradient(circle, transparent 0 5px, rgba(255,255,255,.22) 6px 7px, transparent 8px 11px);
+}
+.quick-player-disc i {
+  position: absolute;
+  z-index: 3;
+  inset: 19px;
+  border: 2px solid #211820;
+  border-radius: 50%;
+  background: #fffdf8;
+}
+.quick-player-disc.is-spinning { animation: large-cd-spin 3.8s linear infinite; }
+.quick-player-track {
+  display: flex;
+  min-width: 0;
+  height: 48px;
+  flex-direction: column;
+  justify-content: center;
+  padding: 3px 4px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+.quick-player-track small,
+.quick-player-track strong,
+.quick-player-track span {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.quick-player-track small { color: var(--berry); font-size: 8px; font-weight: 700; letter-spacing: .05em; }
+.quick-player-track strong { margin: 2px 0 1px; font-size: 12px; }
+.quick-player-track span { color: #6a5661; font-size: 9px; }
+.quick-player-track:hover strong,
+.quick-player-track:focus-visible strong { color: var(--berry); }
+.quick-player-controls { display: flex; justify-content: flex-end; gap: 3px; }
+.quick-player-controls button {
+  display: grid;
+  width: 24px;
+  height: 30px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--soft-line);
+  border-radius: 5px 2px 5px 2px;
+  background: #f8d8e1;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+.quick-player-controls button:hover,
+.quick-player-controls button:focus-visible { background: #efadc1; }
+.desktop-quick-player > input[type="range"] {
+  position: absolute;
+  right: 8px;
+  bottom: 5px;
+  width: 211px;
+  height: 4px;
+  margin: 0;
+}
+.desktop-quick-player > input[type="range"]::-webkit-slider-thumb {
+  width: 9px;
+  height: 11px;
+}
+
+.calendar-day.is-past:not(.has-memory):not(.has-scheduled) {
+  border-color: rgba(125,75,98,.48);
+  background: rgba(255,246,249,.88);
+}
+.calendar-day.is-past:not(.has-memory):not(.has-scheduled) small {
+  color: #916178;
+  opacity: .55;
+}
+.calendar-day.is-past:not(.has-memory):not(.has-scheduled):hover,
+.calendar-day.is-past:not(.has-memory):not(.has-scheduled):focus-visible {
+  background: #f7dce5;
+}
+
+@media (min-width: 900px) and (max-width: 1099px) {
+  .desktop-quick-player {
+    right: 12px;
+    bottom: 78px;
+    width: 276px;
+  }
+  .welcome-card {
+    width: min(650px, calc(100% - 120px));
+    padding: 38px 50px 34px;
+  }
+}
+@media (max-height: 650px) and (min-width: 900px) {
+  .desktop-quick-player { bottom: 68px; }
+  .welcome-card {
+    width: min(620px, calc(100% - 120px));
+    padding: 28px 45px 25px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .quick-player-disc.is-spinning { animation: none; }
 }

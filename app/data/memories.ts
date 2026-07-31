@@ -27,7 +27,6 @@ export const memories: Memory[] = [
       "/media/photos/memory-01-02.jpg",
       "/media/photos/memory-01-03.jpg",
       "/media/photos/memory-01-04.jpg",
-      "/media/photos/memory-01-05.jpg",
     ],
     song: {
       title: "Já Sei Namorar",

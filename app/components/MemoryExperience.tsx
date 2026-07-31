@@ -4,6 +4,7 @@ import Image from "next/image";
 import {
   FormEvent,
   PointerEvent as ReactPointerEvent,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -12,7 +13,7 @@ import { calendarMemories } from "../data/calendar-memories";
 import { memories } from "../data/memories";
 import { isPastLocalDate, localDateToIso, parseLocalIsoDate } from "../lib/local-date";
 
-type WindowName = "music" | "memory" | "archive" | "letter" | "response" | "date";
+type WindowName = "music" | "memory" | "archive" | "response" | "date";
 type Point = { x: number; y: number };
 type DragState = {
   name: WindowName;
@@ -24,6 +25,7 @@ type DragState = {
 type DateStep = "calendar" | "confirm" | "details" | "record";
 type ScheduledEncounter = {
   date: string;
+  kind: "lived" | "planned";
   outing: string;
   place: string;
   description: string;
@@ -41,6 +43,7 @@ function isScheduledEncounter(value: unknown): value is ScheduledEncounter {
   return (
     typeof candidate.date === "string" &&
     parseLocalIsoDate(candidate.date) !== null &&
+    (candidate.kind === undefined || candidate.kind === "lived" || candidate.kind === "planned") &&
     typeof candidate.outing === "string" &&
     typeof candidate.place === "string" &&
     typeof candidate.description === "string"
@@ -54,7 +57,12 @@ function readScheduledEncounters(raw: string | null) {
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") return records;
     Object.entries(parsed).forEach(([date, value]) => {
-      if (isScheduledEncounter(value) && value.date === date) records[date] = value;
+      if (isScheduledEncounter(value) && value.date === date) {
+        records[date] = {
+          ...value,
+          kind: value.kind ?? (isPastLocalDate(value.date) ? "lived" : "planned"),
+        };
+      }
     });
   } catch {
     return records;
@@ -179,16 +187,15 @@ export default function MemoryExperience() {
   const [calendarMonth, setCalendarMonth] = useState({ year: 2026, month: 7 });
   const [clock, setClock] = useState("--:--");
   const [visible, setVisible] = useState<Record<WindowName, boolean>>({
-    music: false, memory: false, archive: false, letter: false, response: false, date: false,
+    music: false, memory: false, archive: false, response: false, date: false,
   });
   const [layers, setLayers] = useState<Record<WindowName, number>>({
-    music: 12, memory: 14, archive: 13, letter: 15, response: 16, date: 17,
+    music: 12, memory: 14, archive: 13, response: 16, date: 17,
   });
   const [positions, setPositions] = useState<Record<WindowName, Point | null>>({
     music: null,
     memory: null,
     archive: null,
-    letter: null,
     response: null,
     date: null,
   });
@@ -196,7 +203,6 @@ export default function MemoryExperience() {
     music: false,
     memory: false,
     archive: false,
-    letter: false,
     response: false,
     date: false,
   });
@@ -425,6 +431,11 @@ export default function MemoryExperience() {
     show("music");
   }
 
+  function chooseSongFromQuickPlayer(index: number) {
+    autoplay.current = true;
+    setSelectedSongIndex((index + memories.length) % memories.length);
+  }
+
   function seek(value: number) {
     if (audioRef.current && duration) audioRef.current.currentTime = (value / 100) * duration;
   }
@@ -474,8 +485,8 @@ export default function MemoryExperience() {
       openDateRecord(isoDate);
       return;
     }
-    if (!parseLocalIsoDate(isoDate) || isPastLocalDate(isoDate)) {
-      setDateError("Datas passadas ficam disponíveis somente para consultar lembranças já registradas.");
+    if (!parseLocalIsoDate(isoDate)) {
+      setDateError("Essa data não é válida. Escolha outro dia no calendário.");
       return;
     }
     setSelectedDate(isoDate);
@@ -493,10 +504,7 @@ export default function MemoryExperience() {
       setDateError("A data escolhida é inválida. Volte ao calendário e escolha outra data.");
       return;
     }
-    if (isPastLocalDate(selectedDate)) {
-      setDateError("Não é possível marcar um novo encontro em uma data passada.");
-      return;
-    }
+
     if (calendarMemories[selectedDate] || scheduledEncounters[selectedDate]) {
       setDateError("Já existe um encontro registrado nessa data. Consulte os detalhes no calendário.");
       return;
@@ -516,7 +524,13 @@ export default function MemoryExperience() {
     dateSavingRef.current = true;
     setDateSaving(true);
     setDateError("");
-    const encounter: ScheduledEncounter = { date: selectedDate, outing, place, description };
+    const encounter: ScheduledEncounter = {
+      date: selectedDate,
+      kind: isPastLocalDate(selectedDate) ? "lived" : "planned",
+      outing,
+      place,
+      description,
+    };
     const nextEncounters = { ...scheduledEncounters, [selectedDate]: encounter };
     try {
       localStorage.setItem(encounterStorageKey, JSON.stringify(nextEncounters));
@@ -541,38 +555,52 @@ export default function MemoryExperience() {
     }
   }
 
-  function escapeNoButton(pointerX: number, pointerY: number) {
+  const escapeNoButton = useCallback((pointerX: number, pointerY: number) => {
     if (!welcomeVisible || welcomeLeaving || !noButtonRef.current) return;
     const now = performance.now();
-    if (now - lastEscapeTime.current < 90) return;
+    if (now - lastEscapeTime.current < 18) return;
     lastEscapeTime.current = now;
 
     const buttonRect = noButtonRef.current.getBoundingClientRect();
     const buttonWidth = buttonRect.width || 146;
     const buttonHeight = buttonRect.height || 48;
-    const margin = 52;
+    const margin = 64;
     const exclusions = [welcomeRef.current?.querySelector(".welcome-card")?.getBoundingClientRect(), welcomeCopyRef.current?.getBoundingClientRect(), welcomeRef.current?.querySelector(".welcome-message")?.getBoundingClientRect(), yesButtonRef.current?.getBoundingClientRect()].filter((rect): rect is DOMRect => Boolean(rect));
     let nextX = margin;
     let nextY = margin;
 
-    for (let attempt = 0; attempt < 80; attempt += 1) {
+    let bestDistance = 0;
+    for (let attempt = 0; attempt < 140; attempt += 1) {
       const candidateX = margin + Math.random() * Math.max(1, window.innerWidth - buttonWidth - margin * 2);
       const candidateY = margin + Math.random() * Math.max(1, window.innerHeight - buttonHeight - margin * 2);
       const candidate = { left: candidateX, top: candidateY, right: candidateX + buttonWidth, bottom: candidateY + buttonHeight };
-      const farFromCursor = distanceFromPointToRect(pointerX, pointerY, new DOMRect(candidateX, candidateY, buttonWidth, buttonHeight)) > 180;
-      if (farFromCursor && exclusions.every((rect) => !rectanglesOverlap(candidate, rect))) {
+      const cursorDistance = distanceFromPointToRect(pointerX, pointerY, new DOMRect(candidateX, candidateY, buttonWidth, buttonHeight));
+      const isSafe = exclusions.every((rect) => !rectanglesOverlap(candidate, rect, 44));
+      if (isSafe && cursorDistance > bestDistance) {
         nextX = candidateX;
         nextY = candidateY;
-        break;
+        bestDistance = cursorDistance;
       }
     }
 
     escapeCount.current += 1;
     setWelcomeMessage(welcomeMessages[(escapeCount.current - 1) % welcomeMessages.length]);
     setNoPosition({ x: nextX, y: nextY });
-  }
+  }, [welcomeLeaving, welcomeVisible]);
 
-  function trackWelcomePointer(event: ReactPointerEvent<HTMLElement>) {
+  useEffect(() => {
+    if (!welcomeVisible || welcomeLeaving) return;
+    const guardNoButton = (event: PointerEvent) => {
+      const noButton = noButtonRef.current;
+      if (noButton && distanceFromPointToRect(event.clientX, event.clientY, noButton.getBoundingClientRect()) < 280) {
+        escapeNoButton(event.clientX, event.clientY);
+      }
+    };
+    window.addEventListener("pointermove", guardNoButton, true);
+    return () => window.removeEventListener("pointermove", guardNoButton, true);
+  }, [escapeNoButton, welcomeLeaving, welcomeVisible]);
+
+  function trackWelcomePointer(event: { clientX: number; clientY: number }) {
     const screen = welcomeRef.current;
     if (screen) {
       const horizontal = (event.clientX / window.innerWidth - 0.5) * 16;
@@ -581,7 +609,7 @@ export default function MemoryExperience() {
       screen.style.setProperty("--welcome-y", `${vertical}px`);
     }
     const noButton = noButtonRef.current;
-    if (noButton && distanceFromPointToRect(event.clientX, event.clientY, noButton.getBoundingClientRect()) < 145) {
+    if (noButton && distanceFromPointToRect(event.clientX, event.clientY, noButton.getBoundingClientRect()) < 260) {
       escapeNoButton(event.clientX, event.clientY);
     }
   }
@@ -608,39 +636,22 @@ export default function MemoryExperience() {
         <section
           ref={welcomeRef}
           className={`welcome-screen${welcomeLeaving ? " is-leaving" : ""}`}
-          onPointerMove={trackWelcomePointer}
+          onPointerMoveCapture={trackWelcomePointer}
+          onMouseMoveCapture={trackWelcomePointer}
           onTransitionEnd={(event) => {
             if (welcomeLeaving && event.target === event.currentTarget && event.propertyName === "opacity") finishWelcomeTransition();
           }}
           aria-label="Boas-vindas ao presente"
         >
-          <div className="welcome-scenery" aria-hidden="true">
-            <span className="welcome-sun" />
-            <span className="welcome-cloud welcome-cloud--one" />
-            <span className="welcome-cloud welcome-cloud--two" />
-            <span className="welcome-wave welcome-wave--one" />
-            <span className="welcome-wave welcome-wave--two" />
-            <span className="welcome-flower welcome-flower--one" />
-            <span className="welcome-flower welcome-flower--two" />
-            <span className="welcome-flower welcome-flower--three" />
-            <span className="welcome-flower welcome-flower--four" />
-            <span className="welcome-petal welcome-petal--one" />
-            <span className="welcome-petal welcome-petal--two" />
-            <span className="welcome-petal welcome-petal--three" />
-            <span className="welcome-petal welcome-petal--four" />
-          </div>
+          <Image
+            className="welcome-background"
+            src={asset("/media/photos/welcome-flowers.webp")}
+            alt="Jardim de flores cor-de-rosa iluminado pelo sol"
+            fill
+            priority
+            unoptimized
+          />
           <div className="welcome-card">
-            <figure className="welcome-photo">
-              <Image
-                src={asset("/media/photos/welcome-flowers.webp")}
-                alt="Flores cor-de-rosa iluminadas pelo sol"
-                width={1200}
-                height={900}
-                priority
-                unoptimized
-              />
-              <figcaption>um jardim inteiro para o meu amor</figcaption>
-            </figure>
             <div className="welcome-content">
               <div className="welcome-copy" ref={welcomeCopyRef}>
                 <span className="welcome-kicker">UM PRESENTE FEITO SÓ PARA VOCÊ</span>
@@ -659,6 +670,7 @@ export default function MemoryExperience() {
             tabIndex={-1}
             aria-disabled="true"
             onPointerEnter={(event) => escapeNoButton(event.clientX, event.clientY)}
+            onPointerMove={(event) => escapeNoButton(event.clientX, event.clientY)}
             onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); escapeNoButton(event.clientX, event.clientY); }}
             onClick={(event) => { event.preventDefault(); escapeNoButton(event.clientX, event.clientY); }}
             onFocus={(event) => { event.currentTarget.blur(); escapeNoButton(window.innerWidth / 2, window.innerHeight / 2); }}
@@ -695,6 +707,24 @@ export default function MemoryExperience() {
 
         <section className="wallpaper" aria-label="Janelas abertas">
           <div className="desktop-stamp" aria-hidden="true"><span>V + V</span><small>DESDE 2025</small></div>
+
+          <aside className="desktop-quick-player" aria-label="Tocador rápido de músicas">
+            <span className={`quick-player-disc${playing ? " is-spinning" : ""}`} aria-hidden="true">
+              <Image src={asset(memories[selectedSongIndex].photos[0])} alt="" fill sizes="54px" unoptimized />
+              <i />
+            </span>
+            <button type="button" className="quick-player-track" onClick={() => show("music")} aria-label="Abrir lista de músicas">
+              <small>{playing ? "TOCANDO AGORA" : "FAIXA PRONTA"}</small>
+              <strong>{selectedSong.title}</strong>
+              <span>{selectedSong.artist}</span>
+            </button>
+            <div className="quick-player-controls">
+              <button type="button" onClick={() => chooseSongFromQuickPlayer(selectedSongIndex - 1)} aria-label="Música anterior">‹</button>
+              <button type="button" onClick={togglePlayback} aria-label={playing ? "Pausar música" : "Tocar música"}>{playing ? "Ⅱ" : "▶"}</button>
+              <button type="button" onClick={() => chooseSongFromQuickPlayer(selectedSongIndex + 1)} aria-label="Próxima música">›</button>
+            </div>
+            <input type="range" min="0" max="100" value={progress} onChange={(event) => seek(Number(event.target.value))} aria-label="Posição da música no tocador rápido" />
+          </aside>
 
           {visible.music && (
             <section className={`os-window music-window${maximized.music ? " is-maximized" : ""}`} style={windowStyle("music")} onPointerDown={() => front("music")} aria-label="Seletor de músicas">
@@ -770,23 +800,6 @@ export default function MemoryExperience() {
             </aside>
           )}
 
-          {visible.letter && (
-            <section className={`os-window letter-window${maximized.letter ? " is-maximized" : ""}`} style={windowStyle("letter")} onPointerDown={() => front("letter")} aria-label="Carta para Vitória">
-              <WindowBar title="CARTA_FINAL.DOC" onClose={() => close("letter")} maximized={maximized.letter} onToggleMaximize={() => toggleMaximize("letter")} onDragStart={(event) => startDrag("letter", event)} onDragMove={dragWindow} onDragEnd={endDrag} onNudge={(x, y, bar) => nudgeWindow("letter", x, y, bar)} />
-              <div className="letter-layout">
-                <figure className="letter-polaroid"><Image src={asset("/media/photos/memory-20-01.jpg")} alt="Vitória e Victor em uma lembrança juntos" fill sizes="280px" unoptimized /><figcaption>para sempre nós</figcaption></figure>
-                <article className="letter-paper">
-                  <span className="letter-date">10 de agosto de 2026</span>
-                  <h2>Meu amor,</h2>
-                  <p>Esta é a única parte do presente que ainda não poderia ser escrita por outra voz. A carta definitiva será colocada aqui pelo Victor, com cada palavra escolhida para você.</p>
-                  <p>Por enquanto, fica esta certeza: cada detalhe deste lugar foi feito para lembrar o quanto a sua existência tornou a vida dele mais bonita.</p>
-                  <p className="letter-signature">Com amor, <strong>Victor</strong></p>
-                  <button type="button" onClick={() => show("response")}>RESPONDER AO VICTOR →</button>
-                </article>
-              </div>
-            </section>
-          )}
-
           {visible.response && (
             <section className={`os-window response-window${maximized.response ? " is-maximized" : ""}`} style={windowStyle("response")} onPointerDown={() => front("response")} aria-label="Responder ao presente">
               <WindowBar title="CAIXA_DE_MENSAGEM" onClose={() => close("response")} maximized={maximized.response} onToggleMaximize={() => toggleMaximize("response")} onDragStart={(event) => startDrag("response", event)} onDragMove={dragWindow} onDragEnd={endDrag} onNudge={(x, y, bar) => nudgeWindow("response", x, y, bar)} />
@@ -808,7 +821,7 @@ export default function MemoryExperience() {
               <div className="date-planner">
                 {dateStep === "calendar" && (
                   <section className="calendar-step" aria-labelledby="calendar-heading">
-                    <div className="date-intro"><span>UM CONVITE PARA NÓS DOIS</span><h2 id="calendar-heading">Quando você quer sair comigo?</h2><p>Flores marcam encontros vividos; o ponto marca um encontro agendado. Datas passadas sem registro ficam indisponíveis.</p></div>
+                    <div className="date-intro"><span>NOSSO CALENDÁRIO</span><h2 id="calendar-heading">Quando nós saímos — ou vamos sair?</h2><p>Escolha uma data livre: em dias passados você registra o que já vivemos; hoje e no futuro, marca o nosso próximo encontro.</p></div>
                     <div className="calendar-toolbar">
                       <button type="button" onClick={() => changeCalendarMonth(-1)} aria-label="Mês anterior">←</button>
                       <strong>{calendarTitle}</strong>
@@ -829,26 +842,23 @@ export default function MemoryExperience() {
                         const scheduledEncounter = scheduledEncounters[isoDate];
                         const isPast = Boolean(todayIso && isoDate < todayIso);
                         const isToday = isoDate === todayIso;
-                        const hasRecord = Boolean(calendarMemory || scheduledEncounter);
-                        const isDisabled = isPast && !hasRecord;
                         const isSelected = selectedDate === isoDate;
+                        const scheduledIsLived = scheduledEncounter?.kind === "lived";
                         const classes = [
                           "calendar-day",
                           calendarMemory ? "has-memory is-completed" : "",
-                          scheduledEncounter ? "has-scheduled is-future-meeting" : "",
+                          scheduledEncounter ? (scheduledIsLived ? "has-memory is-completed" : "has-scheduled is-future-meeting") : "",
                           isPast ? "is-past" : "",
                           isToday ? "is-today" : "",
                           isSelected ? "is-selected" : "",
-                          isDisabled ? "is-disabled" : "",
+
                         ].filter(Boolean).join(" ");
                         const title = calendarMemory?.description ?? (scheduledEncounter ? `${scheduledEncounter.outing}: ${scheduledEncounter.place}` : undefined);
                         const ariaLabel = calendarMemory
                           ? `Encontro realizado em ${day} de ${calendarTitle}: ${calendarMemory.description}. Abrir detalhes.`
                           : scheduledEncounter
-                            ? `Encontro agendado em ${day} de ${calendarTitle}: ${scheduledEncounter.outing}, ${scheduledEncounter.place}. Abrir detalhes.`
-                            : isDisabled
-                              ? `Dia ${day} de ${calendarTitle}, indisponível para novo encontro.`
-                              : `Escolher dia ${day} de ${calendarTitle}${isToday ? ", hoje" : ""}.`;
+                            ? `${scheduledIsLived ? "Encontro vivido" : "Encontro agendado"} em ${day} de ${calendarTitle}: ${scheduledEncounter.outing}, ${scheduledEncounter.place}. Abrir detalhes.`
+                            : `Escolher dia ${day} de ${calendarTitle}${isPast ? ", para registrar um encontro vivido" : isToday ? ", hoje" : ", para marcar um encontro"}.`;
                         return (
                           <button
                             type="button"
@@ -859,7 +869,6 @@ export default function MemoryExperience() {
                             data-scheduled-date={scheduledEncounter ? isoDate : undefined}
                             key={day}
                             title={title}
-                            disabled={isDisabled}
                             onMouseEnter={() => calendarMemory && setCalendarPreviewDate(isoDate)}
                             onMouseLeave={() => setCalendarPreviewDate((current) => current === isoDate ? null : current)}
                             onFocus={() => calendarMemory && setCalendarPreviewDate(isoDate)}
@@ -867,9 +876,9 @@ export default function MemoryExperience() {
                             onClick={() => chooseDate(day)}
                             aria-label={ariaLabel}
                             aria-current={isToday ? "date" : undefined}
-                            aria-pressed={isSelected && !isDisabled}
+                            aria-pressed={isSelected}
                           >
-                            <span>{day}</span><small aria-hidden="true">{calendarMemory ? "✿" : scheduledEncounter ? "●" : "♡"}</small>
+                            <span>{day}</span><small aria-hidden="true">{calendarMemory || scheduledIsLived ? "✿" : scheduledEncounter ? "●" : "♡"}</small>
                           </button>
                         );
                       })}
@@ -890,7 +899,7 @@ export default function MemoryExperience() {
                     <span className="date-heart" aria-hidden="true">♡</span>
                     <p>VOCÊ ESCOLHEU</p>
                     <strong>{selectedDateLabel}</strong>
-                    <h2 id="date-confirm-title">Tem certeza dessa data?</h2>
+                    <h2 id="date-confirm-title">{isPastLocalDate(selectedDate) ? "Quer guardar o que aconteceu nesse dia?" : "Tem certeza dessa data?"}</h2>
                     {dateError && <p className="date-error" role="alert">{dateError}</p>}
                     <div className="date-actions"><button type="button" className="secondary" onClick={() => returnToCalendar(selectedDate)}>ESCOLHER OUTRA</button><button type="button" onClick={() => { setDateError(""); setDateStep("details"); }}>SIM, TENHO CERTEZA ♡</button></div>
                   </section>
@@ -898,24 +907,24 @@ export default function MemoryExperience() {
 
                 {dateStep === "details" && (
                   <form className="date-details" action={feedbackEndpoint || undefined} method="POST" onSubmit={saveDateRequestLocally} aria-busy={dateSaving}>
-                    <input type="hidden" name="_subject" value="Vitória escolheu uma data para sair com você ♡" />
+                    <input type="hidden" name="_subject" value={isPastLocalDate(selectedDate) ? "Vitória registrou um encontro que vocês viveram ♡" : "Vitória escolheu uma data para sair com você ♡"} />
                     <input type="hidden" name="_template" value="table" />
                     <input type="hidden" name="_next" value={`${siteUrl}#encontro-enviado`} />
                     <input type="hidden" name="Data escolhida" value={selectedDateLabel} />
                     <input type="hidden" name="Data ISO" value={selectedDate} />
-                    <header><span>ENCONTRO ESCOLHIDO</span><h2>{selectedDateLabel}</h2><button type="button" onClick={() => returnToCalendar(selectedDate)}>TROCAR DATA</button></header>
-                    <label htmlFor="outing-type">ONDE VOCÊ QUER IR?<select id="outing-type" name="Tipo de passeio" defaultValue="" required disabled={dateSaving}><option value="" disabled>Escolha uma ideia...</option><option>Restaurante</option><option>Cinema</option><option>Parque ou praia</option><option>Café ou confeitaria</option><option>Passeio surpresa</option><option>Outro lugar</option></select></label>
-                    <label htmlFor="outing-place">QUAL É O LOCAL?<input id="outing-place" name="Local desejado" minLength={2} maxLength={120} placeholder="Ex.: o nome do restaurante ou lugar" required disabled={dateSaving} /></label>
-                    <label className="date-description" htmlFor="outing-description">DESCREVA O LOCAL E O QUE VOCÊ IMAGINOU<textarea id="outing-description" name="Descrição do local" minLength={3} maxLength={1000} placeholder="Conte onde fica, o que gostaria de fazer e qualquer detalhe importante..." required disabled={dateSaving} /></label>
+                    <header><span>{isPastLocalDate(selectedDate) ? "ENCONTRO VIVIDO" : "ENCONTRO ESCOLHIDO"}</span><h2>{selectedDateLabel}</h2><button type="button" onClick={() => returnToCalendar(selectedDate)}>TROCAR DATA</button></header>
+                    <label htmlFor="outing-type">{isPastLocalDate(selectedDate) ? "QUE TIPO DE ENCONTRO FOI?" : "ONDE VOCÊ QUER IR?"}<select id="outing-type" name="Tipo de passeio" defaultValue="" required disabled={dateSaving}><option value="" disabled>{isPastLocalDate(selectedDate) ? "Escolha o que fizemos..." : "Escolha uma ideia..."}</option><option>Restaurante</option><option>Cinema</option><option>Parque ou praia</option><option>Café ou confeitaria</option><option>Passeio surpresa</option><option>Outro lugar</option></select></label>
+                    <label htmlFor="outing-place">{isPastLocalDate(selectedDate) ? "ONDE NÓS FOMOS?" : "QUAL É O LOCAL?"}<input id="outing-place" name="Local desejado" minLength={2} maxLength={120} placeholder="Ex.: o nome do restaurante ou lugar" required disabled={dateSaving} /></label>
+                    <label className="date-description" htmlFor="outing-description">{isPastLocalDate(selectedDate) ? "CONTE O QUE ACONTECEU" : "DESCREVA O LOCAL E O QUE VOCÊ IMAGINOU"}<textarea id="outing-description" name="Descrição do local" minLength={3} maxLength={1000} placeholder={isPastLocalDate(selectedDate) ? "Conte o que fizemos e o que tornou esse dia especial..." : "Conte onde fica, o que gostaria de fazer e qualquer detalhe importante..."} required disabled={dateSaving} /></label>
                     {dateError && <p className="date-error" role="alert">{dateError}</p>}
-                    <button type="submit" className="date-submit" disabled={dateSaving}>{dateSaving ? "ENVIANDO..." : "ENVIAR NOSSO ENCONTRO PARA O VICTOR ♡"}</button>
+                    <button type="submit" className="date-submit" disabled={dateSaving}>{dateSaving ? "ENVIANDO..." : isPastLocalDate(selectedDate) ? "GUARDAR ESTA LEMBRANÇA ♡" : "ENVIAR NOSSO ENCONTRO PARA O VICTOR ♡"}</button>
                   </form>
                 )}
 
                 {dateStep === "record" && (
                   <section className="date-record" aria-labelledby="date-record-title">
                     <header>
-                      <div><span>{recordCalendarMemory ? "ENCONTRO VIVIDO" : "ENCONTRO AGENDADO"}</span><h2 id="date-record-title">{recordDateLabel}</h2></div>
+                      <div><span>{recordCalendarMemory || recordScheduledEncounter?.kind === "lived" ? "ENCONTRO VIVIDO" : "ENCONTRO AGENDADO"}</span><h2 id="date-record-title">{recordDateLabel}</h2></div>
                       <button ref={recordCloseButton} type="button" onClick={closeDateRecord} aria-label="Fechar detalhes do encontro">×</button>
                     </header>
                     {recordCalendarMemory ? (
@@ -929,7 +938,7 @@ export default function MemoryExperience() {
                     ) : (
                       <p className="date-error" role="status">Este encontro não está mais disponível.</p>
                     )}
-                    {dateRequestSaved && recordScheduledEncounter && <p className="date-saved" role="status">Pedido guardado neste computador.</p>}
+                    {dateRequestSaved && recordScheduledEncounter && <p className="date-saved" role="status">{recordScheduledEncounter.kind === "lived" ? "Lembrança guardada neste computador." : "Pedido guardado neste computador."}</p>}
                     <button type="button" className="date-record-back" onClick={closeDateRecord}>VOLTAR AO CALENDÁRIO</button>
                   </section>
                 )}
@@ -943,7 +952,7 @@ export default function MemoryExperience() {
           <button type="button" onClick={() => show("memory")}><span aria-hidden="true">▧</span><strong>Memória</strong></button>
           <button type="button" onClick={() => show("archive")}><span aria-hidden="true">▦</span><strong>Arquivo</strong></button>
           <button type="button" className="dock-heart" onClick={() => chooseSong(4)}><span aria-hidden="true">♡</span><strong>Nossa música</strong></button>
-          <button type="button" onClick={() => show("letter")}><span aria-hidden="true">✉</span><strong>Carta</strong></button>
+
           <button type="button" onClick={() => show("response")}><span aria-hidden="true">✎</span><strong>Responder</strong></button>
           <button type="button" className="dock-date" onClick={() => { setDateStep("calendar"); setDateError(""); show("date"); }}><span aria-hidden="true">17</span><strong>Encontro</strong></button>
         </nav>
