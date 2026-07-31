@@ -39,7 +39,8 @@ test("renderiza a area de trabalho do presente em portugues", async () => {
   assert.match(html, /<html[^>]*lang="pt-BR"/i);
   assert.match(html, /<title>20 memórias para Vitória<\/title>/i);
   assert.match(html, /20 memórias/);
-  assert.match(html, /VITÓRIA OS/);
+  assert.match(html, /20 memórias com o meu amor!/);
+  assert.doesNotMatch(html, /VITÓRIA OS/);
   assert.match(html, /welcome-flowers\.webp/);
   assert.match(html, /Aplicativos do presente/);
   assert.match(html, /Nossa música/);
@@ -81,20 +82,30 @@ test("cadastra todas as datas especiais no calendário", async () => {
 });
 test("inclui todas as fotografias e trilhas preparadas", async () => {
   const photoRoot = new URL("../public/media/photos/", import.meta.url);
+  const thumbnailRoot = new URL("../public/media/thumbs/", import.meta.url);
   const audioRoot = new URL("../public/media/audio/", import.meta.url);
   const photos = (await readdir(photoRoot)).filter((name) =>
     name.endsWith(".jpg"),
+  );
+  const thumbnails = (await readdir(thumbnailRoot)).filter((name) =>
+    name.endsWith(".webp"),
   );
   const songs = (await readdir(audioRoot)).filter((name) =>
     name.endsWith(".mp3"),
   );
 
   assert.equal(photos.length, 46);
+  assert.equal(thumbnails.length, 46);
   assert.equal(songs.length, 20);
 
   for (const name of photos) {
     const file = await stat(new URL(name, photoRoot));
     assert.ok(file.size > 5_000, `${name} parece estar vazio ou corrompido`);
+  }
+
+  for (const name of thumbnails) {
+    const file = await stat(new URL(name, thumbnailRoot));
+    assert.ok(file.size > 1_000 && file.size < 40_000, `${name} não parece ser uma miniatura otimizada`);
   }
 
   for (const name of songs) {
@@ -147,6 +158,11 @@ test("inclui a fotografia fornecida e as regras locais do calendário", async ()
   assert.match(component, /dateSavingRef\.current/);
   assert.match(component, /encontros-agendados-vitoria/);
   assert.match(component, /desktop-quick-player/);
+  assert.match(component, /quick-player-drag-handle/);
+  assert.match(component, /thumbnailAsset/);
+  assert.match(component, /dock-heart" onClick=\{\(\) => chooseSongFromQuickPlayer\(4\)\}/);
+  assert.match(component, /20 memórias com o meu amor!/);
+  assert.doesNotMatch(component, /VITÓRIA OS/);
   assert.match(component, /mouse-ambience/);
   assert.match(component, /cursor-petal/);
   assert.match(component, /kind: isPastLocalDate\(selectedDate\) \? "lived" : "planned"/);

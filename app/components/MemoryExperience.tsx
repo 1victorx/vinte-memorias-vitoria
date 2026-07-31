@@ -22,6 +22,13 @@ type DragState = {
   originY: number;
   rect: DOMRect;
 };
+type QuickPlayerDragState = {
+  pointerId: number;
+  originX: number;
+  originY: number;
+  rect: DOMRect;
+  point: Point;
+};
 type DateStep = "calendar" | "confirm" | "details" | "record";
 type ScheduledEncounter = {
   date: string;
@@ -35,6 +42,10 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://1victorx.github.io/vinte-memorias-vitoria/";
 const feedbackEndpoint = process.env.NEXT_PUBLIC_FEEDBACK_ENDPOINT ?? "";
 const asset = (path: string) => `${basePath}${path}`;
+const thumbnailAsset = (path: string) => {
+  const filename = path.split("/").pop()?.replace(/\.[^.]+$/, ".webp");
+  return asset(`/media/thumbs/${filename}`);
+};
 const encounterStorageKey = "encontros-agendados-vitoria";
 
 function isScheduledEncounter(value: unknown): value is ScheduledEncounter {
@@ -186,6 +197,7 @@ export default function MemoryExperience() {
   const [calendarPreviewDate, setCalendarPreviewDate] = useState<string | null>(null);
   const [calendarMonth, setCalendarMonth] = useState({ year: 2026, month: 7 });
   const [clock, setClock] = useState("--:--");
+  const [quickPlayerPosition, setQuickPlayerPosition] = useState<Point | null>(null);
   const [visible, setVisible] = useState<Record<WindowName, boolean>>({
     music: false, memory: false, archive: false, response: false, date: false,
   });
@@ -217,6 +229,8 @@ export default function MemoryExperience() {
   const ambienceRef = useRef<HTMLDivElement>(null);
   const mousePetalCount = useRef(0);
   const dragState = useRef<DragState | null>(null);
+  const quickPlayerRef = useRef<HTMLElement>(null);
+  const quickPlayerDrag = useRef<QuickPlayerDragState | null>(null);
   const recordCloseButton = useRef<HTMLButtonElement>(null);
   const dateSavingRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -334,7 +348,7 @@ export default function MemoryExperience() {
 
       const now = performance.now();
       const travelled = Math.hypot(latestX - lastPetalX, latestY - lastPetalY);
-      if (travelled < 30 || now - lastPetalAt < 55) return;
+      if (travelled < 52 || now - lastPetalAt < 100) return;
 
       lastPetalX = latestX;
       lastPetalY = latestY;
@@ -350,7 +364,7 @@ export default function MemoryExperience() {
       ambience.appendChild(petal);
       petal.addEventListener("animationend", () => petal.remove(), { once: true });
       ambience.querySelectorAll(".cursor-petal").forEach((item, index, items) => {
-        if (index < items.length - 14) item.remove();
+        if (index < items.length - 8) item.remove();
       });
     };
 
@@ -479,6 +493,81 @@ export default function MemoryExperience() {
     moveWindow(name, rect.left + x, rect.top + y, rect);
   }
 
+  function clampQuickPlayer(left: number, top: number, rect: DOMRect) {
+    const margin = 8;
+    return {
+      x: Math.max(margin, Math.min(window.innerWidth - rect.width - margin, left)),
+      y: Math.max(36, Math.min(window.innerHeight - rect.height - margin, top)),
+    };
+  }
+
+  function positionQuickPlayer(point: Point) {
+    const player = quickPlayerRef.current;
+    if (!player) return;
+    player.style.position = "fixed";
+    player.style.left = `${point.x}px`;
+    player.style.top = `${point.y}px`;
+    player.style.right = "auto";
+    player.style.bottom = "auto";
+  }
+
+  function startQuickPlayerDrag(event: ReactPointerEvent<HTMLButtonElement>) {
+    if (event.button !== 0 || !quickPlayerRef.current) return;
+    event.preventDefault();
+    const rect = quickPlayerRef.current.getBoundingClientRect();
+    const point = clampQuickPlayer(rect.left, rect.top, rect);
+    quickPlayerDrag.current = {
+      pointerId: event.pointerId,
+      originX: event.clientX,
+      originY: event.clientY,
+      rect,
+      point,
+    };
+    positionQuickPlayer(point);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function dragQuickPlayer(event: ReactPointerEvent<HTMLButtonElement>) {
+    const drag = quickPlayerDrag.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const point = clampQuickPlayer(
+      drag.rect.left + event.clientX - drag.originX,
+      drag.rect.top + event.clientY - drag.originY,
+      drag.rect,
+    );
+    drag.point = point;
+    positionQuickPlayer(point);
+  }
+
+  function endQuickPlayerDrag(event: ReactPointerEvent<HTMLButtonElement>) {
+    const drag = quickPlayerDrag.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    quickPlayerDrag.current = null;
+    setQuickPlayerPosition(drag.point);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  function nudgeQuickPlayer(x: number, y: number) {
+    const player = quickPlayerRef.current;
+    if (!player) return;
+    const rect = player.getBoundingClientRect();
+    const point = clampQuickPlayer(rect.left + x, rect.top + y, rect);
+    positionQuickPlayer(point);
+    setQuickPlayerPosition(point);
+  }
+
+  function resetQuickPlayerPosition() {
+    setQuickPlayerPosition(null);
+    const player = quickPlayerRef.current;
+    if (!player) return;
+    player.style.removeProperty("position");
+    player.style.removeProperty("left");
+    player.style.removeProperty("top");
+    player.style.removeProperty("right");
+    player.style.removeProperty("bottom");
+  }
 
   function show(name: WindowName) {
     setVisible((current) => ({ ...current, [name]: true }));
@@ -528,8 +617,13 @@ export default function MemoryExperience() {
   }
 
   function chooseSongFromQuickPlayer(index: number) {
+    const normalizedIndex = (index + memories.length) % memories.length;
     autoplay.current = true;
-    setSelectedSongIndex((index + memories.length) % memories.length);
+    if (normalizedIndex === selectedSongIndex) {
+      audioRef.current?.play().catch(() => setPlaying(false));
+      return;
+    }
+    setSelectedSongIndex(normalizedIndex);
   }
 
   function seek(value: number) {
@@ -803,16 +897,43 @@ export default function MemoryExperience() {
         </div>
 
         <header className="system-bar">
-          <div className="system-brand"><span>✿</span><strong>VITÓRIA OS</strong><i>20 memórias para Amor</i></div>
+          <div className="system-brand"><span>✿</span><i>20 memórias com o meu amor!</i></div>
           <div className="system-status"><span>DOM 10 AGO 2026</span><span>♡</span><time>{clock}</time></div>
         </header>
 
         <section className="wallpaper" aria-label="Janelas abertas">
           <div className="desktop-stamp" aria-hidden="true"><span>V + V</span><small>DESDE 2025</small></div>
 
-          <aside className="desktop-quick-player" aria-label="Tocador rápido de músicas">
+          <aside
+            ref={quickPlayerRef}
+            className="desktop-quick-player"
+            style={quickPlayerPosition ? { position: "fixed", left: quickPlayerPosition.x, top: quickPlayerPosition.y, right: "auto", bottom: "auto" } : undefined}
+            aria-label="Tocador rápido de músicas"
+          >
+            <button
+              type="button"
+              className="quick-player-drag-handle"
+              aria-label="Mover tocador rápido de músicas"
+              title="Arraste para mover; clique duas vezes para restaurar"
+              onPointerDown={startQuickPlayerDrag}
+              onPointerMove={dragQuickPlayer}
+              onPointerUp={endQuickPlayerDrag}
+              onPointerCancel={endQuickPlayerDrag}
+              onDoubleClick={resetQuickPlayerPosition}
+              onKeyDown={(event) => {
+                const distance = event.shiftKey ? 30 : 10;
+                if (event.key === "ArrowLeft") nudgeQuickPlayer(-distance, 0);
+                else if (event.key === "ArrowRight") nudgeQuickPlayer(distance, 0);
+                else if (event.key === "ArrowUp") nudgeQuickPlayer(0, -distance);
+                else if (event.key === "ArrowDown") nudgeQuickPlayer(0, distance);
+                else return;
+                event.preventDefault();
+              }}
+            >
+              <span aria-hidden="true">⋮⋮</span> MOVER
+            </button>
             <span className={`quick-player-disc${playing ? " is-spinning" : ""}`} aria-hidden="true">
-              <Image src={asset(memories[selectedSongIndex].photos[0])} alt="" fill sizes="54px" unoptimized />
+              <Image src={thumbnailAsset(memories[selectedSongIndex].photos[0])} alt="" fill sizes="54px" unoptimized />
               <i />
             </span>
             <button type="button" className="quick-player-track" onClick={() => show("music")} aria-label="Abrir lista de músicas">
@@ -835,7 +956,7 @@ export default function MemoryExperience() {
               <div className={`disc-grid${playing ? " is-playing" : ""}`}>
                 {memories.map((memory, index) => (
                   <button type="button" className={`disc-item${selectedSongIndex === index ? " is-selected" : ""}`} key={memory.id} onClick={() => chooseSong(index)} aria-label={`Tocar ${memory.song.title}, ${memory.song.artist}`}>
-                    <span className={`compact-disc disc-${memory.theme}`} aria-hidden="true"><Image src={asset(memory.photos[0])} alt="" fill sizes="45px" unoptimized /><i /></span>
+                    <span className={`compact-disc disc-${memory.theme}`} aria-hidden="true"><Image src={thumbnailAsset(memory.photos[0])} alt="" fill sizes="45px" unoptimized /><i /></span>
                     <strong>{memory.id.toString().padStart(2, "0")}—{memory.song.title}</strong>
                     <small>{memory.song.artist}</small>
                   </button>
@@ -848,7 +969,7 @@ export default function MemoryExperience() {
                     <div><small>{playing ? "TOCANDO AGORA" : "FAIXA SELECIONADA"}</small><strong>{selectedSong.title}</strong><span>{selectedSong.artist}</span></div>
                   </div>
                   <span className={`large-disc${playing ? " is-spinning" : ""}`} aria-hidden="true">
-                    <Image src={asset(memories[selectedSongIndex].photos[0])} alt="" fill sizes="150px" unoptimized />
+                    <Image src={thumbnailAsset(memories[selectedSongIndex].photos[0])} alt="" fill sizes="150px" unoptimized />
                     <i />
                   </span>
                 </div>
@@ -885,7 +1006,7 @@ export default function MemoryExperience() {
                     <span className="photo-counter">FOTO {activePhotoIndex + 1}/{activeMemory.photos.length}</span>
                   </div>
                   <div className="photo-strip">
-                    {activeMemory.photos.map((photo, index) => <button type="button" key={photo} className={activePhotoIndex === index ? "is-active" : ""} onClick={() => setActivePhotoIndex(index)} aria-label={`Abrir fotografia ${index + 1}`}><Image src={asset(photo)} alt="" fill sizes="70px" unoptimized /></button>)}
+                    {activeMemory.photos.map((photo, index) => <button type="button" key={photo} className={activePhotoIndex === index ? "is-active" : ""} onClick={() => setActivePhotoIndex(index)} aria-label={`Abrir fotografia ${index + 1}`}><Image src={thumbnailAsset(photo)} alt="" fill sizes="70px" unoptimized /></button>)}
                   </div>
                 </section>
               </div>
@@ -897,7 +1018,7 @@ export default function MemoryExperience() {
               <WindowBar title="FOTOS & TEXTOS" onClose={() => close("archive")} maximized={maximized.archive} onToggleMaximize={() => toggleMaximize("archive")} onDragStart={(event) => startDrag("archive", event)} onDragMove={dragWindow} onDragEnd={endDrag} onNudge={(x, y, bar) => nudgeWindow("archive", x, y, bar)} />
               <div className="archive-header"><span>ÍNDICE CRONOLÓGICO</span><strong>VITÓRIA ♡ VICTOR</strong></div>
               <ol className="archive-list">
-                {memories.map((memory, index) => <li key={memory.id}><button type="button" className={activeMemoryIndex === index ? "is-active" : ""} onClick={() => selectMemory(index)}><span className="archive-thumb"><Image src={asset(memory.photos[0])} alt="" fill sizes="54px" unoptimized /></span><span><small>{memory.date}</small><strong>{memory.id.toString().padStart(2, "0")}. {memory.title}</strong></span></button></li>)}
+                {memories.map((memory, index) => <li key={memory.id}><button type="button" className={activeMemoryIndex === index ? "is-active" : ""} onClick={() => selectMemory(index)}><span className="archive-thumb"><Image src={thumbnailAsset(memory.photos[0])} alt="" fill sizes="54px" unoptimized /></span><span><small>{memory.date}</small><strong>{memory.id.toString().padStart(2, "0")}. {memory.title}</strong></span></button></li>)}
               </ol>
             </aside>
           )}
@@ -1053,7 +1174,7 @@ export default function MemoryExperience() {
           <button type="button" onClick={() => show("music")}><span aria-hidden="true">♫</span><strong>Músicas</strong></button>
           <button type="button" onClick={() => show("memory")}><span aria-hidden="true">▧</span><strong>Memória</strong></button>
           <button type="button" onClick={() => show("archive")}><span aria-hidden="true">▦</span><strong>Arquivo</strong></button>
-          <button type="button" className="dock-heart" onClick={() => chooseSong(4)}><span aria-hidden="true">♡</span><strong>Nossa música</strong></button>
+          <button type="button" className="dock-heart" onClick={() => chooseSongFromQuickPlayer(4)}><span aria-hidden="true">♡</span><strong>Nossa música</strong></button>
 
           <button type="button" onClick={() => show("response")}><span aria-hidden="true">✎</span><strong>Responder</strong></button>
           <button type="button" className="dock-date" onClick={() => { setDateStep("calendar"); setDateError(""); show("date"); }}><span aria-hidden="true">17</span><strong>Encontro</strong></button>

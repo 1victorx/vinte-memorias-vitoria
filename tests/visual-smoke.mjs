@@ -83,10 +83,35 @@ for (const size of sizes) {
   assert.equal(await page.locator(".music-window").count(), 0, `${size.name}: o tocador rápido abriu a janela de músicas sem pedido`);
   await quickPlayer.getByRole("button", { name: /música anterior/i }).click();
 
-  const appChecks = [    ["Músicas", ".music-window"],
+  assert.equal(await page.getByText("20 memórias com o meu amor!", { exact: true }).count(), 1, `${size.name}: cabeçalho novo não foi aplicado`);
+  assert.equal(await page.getByText("VITÓRIA OS", { exact: true }).count(), 0, `${size.name}: nome antigo ainda aparece`);
+
+  const quickPlayerBeforeDrag = await quickPlayer.boundingBox();
+  const quickPlayerHandle = quickPlayer.getByRole("button", { name: /mover tocador rápido/i });
+  const quickHandleBox = await quickPlayerHandle.boundingBox();
+  assert.ok(quickPlayerBeforeDrag && quickHandleBox, `${size.name}: alça do player não pôde ser medida`);
+  await page.mouse.move(quickHandleBox.x + quickHandleBox.width / 2, quickHandleBox.y + quickHandleBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(quickHandleBox.x + quickHandleBox.width / 2 - 70, quickHandleBox.y + quickHandleBox.height / 2 - 45, { steps: 5 });
+  await page.mouse.up();
+  const quickPlayerAfterDrag = await quickPlayer.boundingBox();
+  assert.ok(quickPlayerAfterDrag && quickPlayerAfterDrag.x <= quickPlayerBeforeDrag.x - 60 && quickPlayerAfterDrag.y <= quickPlayerBeforeDrag.y - 35, `${size.name}: player rápido não se move livremente`);
+  await quickPlayerHandle.dblclick();
+
+  const ourSongButton = page.locator(".desktop-dock").getByRole("button", { name: "Nossa música", exact: true });
+  await ourSongButton.click();
+  await page.waitForFunction(() => document.querySelector("audio")?.getAttribute("src")?.includes("memory-05.mp3"));
+  assert.equal(await page.locator(".music-window").count(), 0, `${size.name}: Nossa música abriu a lista de CDs`);
+  await quickPlayer.locator(".quick-player-disc.is-spinning").waitFor();
+
+  const responderButton = page.locator(".desktop-dock").getByRole("button", { name: "Responder", exact: true });
+  await responderButton.hover();
+  assert.equal(await responderButton.evaluate((button) => getComputedStyle(button).transform), "none", `${size.name}: relevo do dock ainda desloca o bloco inteiro`);
+
+  const appChecks = [
+    ["Músicas", ".music-window"],
     ["Memória", ".memory-window"],
     ["Arquivo", ".archive-window"],
-    ["Nossa música", ".music-window"],
     ["Responder", ".response-window"],
     ["Encontro", ".date-window"],
   ];
@@ -107,6 +132,8 @@ for (const size of sizes) {
   assert.equal(await page.locator(".disc-item").count(), 20, `${size.name}: seletor precisa ter 20 músicas`);
   assert.equal(await page.locator(".archive-list button").count(), 20, `${size.name}: arquivo precisa ter 20 memórias`);
   assert.equal(await page.locator(".disc-item .compact-disc img").count(), 20, `${size.name}: CDs personalizados precisam exibir 20 capas`);
+  assert.equal(await page.locator(".disc-item .compact-disc img").first().getAttribute("src").then((src) => src?.includes("/media/thumbs/")), true, `${size.name}: CDs ainda carregam fotografias grandes`);
+  assert.equal(await page.locator(".archive-thumb img").first().getAttribute("src").then((src) => src?.includes("/media/thumbs/")), true, `${size.name}: arquivo ainda carrega fotografias grandes`);
   const cornerRadius = await page.locator(".memory-window").evaluate((element) => Number.parseFloat(getComputedStyle(element).borderTopLeftRadius));
   assert.ok(cornerRadius >= 6 && cornerRadius <= 14, `${size.name}: cantos precisam ficar entre retos e excessivamente arredondados`);
   assert.equal(await page.locator(".memory-window").evaluate((element) => getComputedStyle(element).resize), "both", `${size.name}: janela principal precisa ser redimensionável nos dois eixos`);

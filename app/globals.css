@@ -2187,7 +2187,6 @@ body * {
       border-color 170ms ease,
       color 170ms ease,
       filter 220ms ease;
-    will-change: transform;
   }
 
   .desktop-dock button:hover,
@@ -2341,4 +2340,86 @@ body * {
 
 @media (prefers-reduced-motion: reduce) and (min-width: 900px) {
   .desktop button { transition-duration: 90ms; }
+}
+
+/* Stable dock relief, draggable quick player and playback motion */
+.desktop-dock button,
+.desktop-dock button:hover,
+.desktop-dock button:focus-visible,
+.desktop-dock button:active {
+  transform: none;
+}
+.desktop-dock button:hover,
+.desktop-dock button:focus-visible {
+  z-index: 2;
+  background: linear-gradient(180deg, #fffdf8, #f9dbe4);
+  box-shadow:
+    inset 0 4px 0 rgba(255,255,255,.9),
+    inset 0 -5px 0 rgba(169,52,103,.16),
+    0 -7px 18px rgba(83,31,58,.13);
+}
+.desktop-dock button:hover span,
+.desktop-dock button:focus-visible span,
+.desktop-dock button:nth-child(even):hover span,
+.desktop-dock button:nth-child(even):focus-visible span {
+  transform: translateY(-5px) rotate(-5deg) scale(1.16);
+  box-shadow: 3px 5px 0 rgba(111,42,74,.2), 0 8px 14px rgba(83,31,58,.14);
+}
+.desktop-dock button:nth-child(even):hover span,
+.desktop-dock button:nth-child(even):focus-visible span { transform: translateY(-5px) rotate(5deg) scale(1.16); }
+.desktop-dock button strong { transition: transform 180ms ease, color 180ms ease; }
+.desktop-dock button:hover strong,
+.desktop-dock button:focus-visible strong { transform: translateY(-2px); color: #742448; }
+
+.desktop-quick-player {
+  height: 88px;
+  padding-top: 20px;
+  transform: none;
+}
+.desktop-quick-player:hover,
+.desktop-quick-player.is-mouse-lit {
+  transform: none;
+  box-shadow:
+    6px 8px 0 rgba(102,43,70,.28),
+    11px 15px 0 rgba(169,52,103,.11),
+    0 28px 52px rgba(69,29,49,.32);
+}
+.quick-player-drag-handle {
+  position: absolute;
+  z-index: 40;
+  top: 2px;
+  right: 7px;
+  left: 64px;
+  display: flex;
+  height: 16px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  padding: 0 3px;
+  border: 0;
+  border-bottom: 1px dotted rgba(111,69,89,.46);
+  background: transparent;
+  color: #7c3557;
+  cursor: grab;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  touch-action: none;
+  user-select: none;
+}
+.quick-player-drag-handle:hover,
+.quick-player-drag-handle:focus-visible {
+  background: #fce7ed;
+  color: #54152f;
+  transform: none;
+  box-shadow: none;
+}
+.quick-player-drag-handle:active { cursor: grabbing; transform: none !important; box-shadow: none !important; }
+.quick-player-disc.is-spinning {
+  animation: large-cd-spin 3.2s linear infinite !important;
+  animation-play-state: running !important;
+  transition: box-shadow 180ms ease;
+}
+.desktop-quick-player:hover .quick-player-disc.is-spinning {
+  box-shadow: 4px 6px 0 rgba(25,19,33,.24), 0 9px 18px rgba(101,42,70,.2);
 }
