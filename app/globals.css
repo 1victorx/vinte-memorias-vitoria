@@ -2894,6 +2894,7 @@ body * {
   inset: 0;
   overflow: hidden;
   pointer-events: none;
+  contain: layout paint;
   background:
     radial-gradient(circle at 10% 18%, rgba(143, 47, 89, .2), transparent 22%),
     radial-gradient(circle at 88% 70%, rgba(114, 67, 147, .17), transparent 25%),
@@ -2947,7 +2948,6 @@ body * {
   opacity: .86;
   filter: drop-shadow(5px 7px 0 rgba(112, 39, 74, .12));
   transform-origin: center;
-  will-change: transform;
 }
 .gsap-flower i {
   position: absolute;
@@ -2982,7 +2982,6 @@ body * {
   color: rgba(132, 34, 78, .62);
   line-height: 1;
   text-shadow: 2px 2px 0 rgba(255, 255, 255, .7), 5px 6px 0 rgba(111, 42, 74, .1);
-  will-change: transform;
 }
 .gsap-petal {
   position: absolute;
@@ -2994,7 +2993,6 @@ body * {
   background: linear-gradient(135deg, rgba(255, 239, 246, .96), rgba(211, 79, 132, .72));
   box-shadow: 3px 4px 0 rgba(111, 42, 74, .1);
   opacity: .78;
-  will-change: transform;
 }
 .gsap-petal:nth-of-type(3n) { background: linear-gradient(135deg, rgba(249, 239, 255, .96), rgba(165, 111, 194, .7)); }
 .gsap-sparkle {
@@ -3003,7 +3001,6 @@ body * {
   font-size: 14px;
   opacity: .28;
   text-shadow: 0 0 8px rgba(255, 255, 255, .9);
-  will-change: transform, opacity;
 }
 
 @media (prefers-reduced-motion: reduce) {

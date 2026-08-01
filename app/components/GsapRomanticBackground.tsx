@@ -1,6 +1,5 @@
 "use client";
 
-import { gsap } from "gsap";
 import { useEffect, useRef } from "react";
 
 type GsapRomanticBackgroundProps = {
@@ -47,74 +46,102 @@ export default function GsapRomanticBackground({ active }: GsapRomanticBackgroun
     const host = hostRef.current;
     if (!host || !active) return;
 
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const context = gsap.context(() => {
-      gsap.set(".gsap-flower, .gsap-heart, .gsap-petal, .gsap-sparkle", { force3D: true });
-      if (reducedMotion) return;
+    let disposed = false;
+    let cleanup: () => void = () => undefined;
 
-      gsap.utils.toArray<HTMLElement>(".gsap-flower").forEach((flower, index) => {
-        gsap.to(flower, {
-          y: index % 2 === 0 ? -24 : 22,
-          rotation: index % 2 === 0 ? 12 : -10,
-          duration: 3.8 + index * 0.28,
-          repeat: -1,
-          yoyo: true,
+    void import("gsap").then(({ gsap }) => {
+      if (disposed || !host.isConnected) return;
+
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const context = gsap.context(() => {
+        gsap.set(".gsap-flower, .gsap-heart, .gsap-petal, .gsap-sparkle", { force3D: true });
+        if (reducedMotion) return;
+
+        gsap.utils.toArray<HTMLElement>(".gsap-flower").forEach((flower, index) => {
+          gsap.to(flower, {
+            y: index % 2 === 0 ? -24 : 22,
+            rotation: index % 2 === 0 ? 12 : -10,
+            duration: 3.8 + index * 0.28,
+            repeat: -1,
+            yoyo: true,
+            ease: "sine.inOut",
+            delay: index * -0.7,
+          });
+        });
+
+        gsap.utils.toArray<HTMLElement>(".gsap-heart").forEach((heart, index) => {
+          gsap.to(heart, {
+            y: -18 - (index % 3) * 8,
+            rotation: index % 2 === 0 ? 9 : -11,
+            scale: 1.12 + (index % 2) * 0.08,
+            duration: 2.8 + index * 0.23,
+            repeat: -1,
+            yoyo: true,
+            ease: "power1.inOut",
+            delay: index * -0.45,
+          });
+        });
+
+        gsap.utils.toArray<HTMLElement>(".gsap-petal").forEach((petal, index) => {
+          gsap.to(petal, {
+            x: index % 2 === 0 ? 34 : -30,
+            y: 28 + (index % 4) * 10,
+            rotation: `+=${index % 2 === 0 ? 65 : -55}`,
+            duration: 4.4 + index * 0.31,
+            repeat: -1,
+            yoyo: true,
+            ease: "sine.inOut",
+            delay: index * -0.5,
+          });
+        });
+
+        gsap.to(".gsap-sparkle", {
+          opacity: 0.95,
+          scale: 1.55,
+          duration: 1.35,
+          stagger: { each: 0.14, from: "random", repeat: -1, yoyo: true },
           ease: "sine.inOut",
-          delay: index * -0.7,
         });
-      });
+        gsap.to(".gsap-orbit--one", { rotation: 360, duration: 38, repeat: -1, ease: "none" });
+        gsap.to(".gsap-orbit--two", { rotation: -360, duration: 46, repeat: -1, ease: "none" });
+      }, host);
 
-      gsap.utils.toArray<HTMLElement>(".gsap-heart").forEach((heart, index) => {
-        gsap.to(heart, {
-          y: -18 - (index % 3) * 8,
-          rotation: index % 2 === 0 ? 9 : -11,
-          scale: 1.12 + (index % 2) * 0.08,
-          duration: 2.8 + index * 0.23,
-          repeat: -1,
-          yoyo: true,
-          ease: "power1.inOut",
-          delay: index * -0.45,
-        });
-      });
+      let moveLayers: ((event: PointerEvent) => void) | undefined;
+      if (!reducedMotion) {
+        const farLayer = host.querySelector<HTMLElement>(".gsap-layer--far");
+        const nearLayer = host.querySelector<HTMLElement>(".gsap-layer--near");
+        if (farLayer && nearLayer) {
+          const farX = gsap.quickTo(farLayer, "x", { duration: 1.1, ease: "power2.out" });
+          const farY = gsap.quickTo(farLayer, "y", { duration: 1.1, ease: "power2.out" });
+          const nearX = gsap.quickTo(nearLayer, "x", { duration: 0.75, ease: "power2.out" });
+          const nearY = gsap.quickTo(nearLayer, "y", { duration: 0.75, ease: "power2.out" });
 
-      gsap.utils.toArray<HTMLElement>(".gsap-petal").forEach((petal, index) => {
-        gsap.to(petal, {
-          x: index % 2 === 0 ? 34 : -30,
-          y: 28 + (index % 4) * 10,
-          rotation: `+=${index % 2 === 0 ? 65 : -55}`,
-          duration: 4.4 + index * 0.31,
-          repeat: -1,
-          yoyo: true,
-          ease: "sine.inOut",
-          delay: index * -0.5,
-        });
-      });
+          moveLayers = (event: PointerEvent) => {
+            const horizontal = event.clientX / window.innerWidth - 0.5;
+            const vertical = event.clientY / window.innerHeight - 0.5;
+            farX(horizontal * -30);
+            farY(vertical * -20);
+            nearX(horizontal * 44);
+            nearY(vertical * 30);
+          };
+          window.addEventListener("pointermove", moveLayers, { passive: true });
+        }
+      }
 
-      gsap.to(".gsap-sparkle", {
-        opacity: 0.95,
-        scale: 1.55,
-        duration: 1.35,
-        stagger: { each: 0.14, from: "random", repeat: -1, yoyo: true },
-        ease: "sine.inOut",
-      });
-      gsap.to(".gsap-orbit--one", { rotation: 360, duration: 38, repeat: -1, ease: "none" });
-      gsap.to(".gsap-orbit--two", { rotation: -360, duration: 46, repeat: -1, ease: "none" });
-    }, host);
+      host.dataset.motionReady = reducedMotion ? "reduced" : "true";
+      cleanup = () => {
+        if (moveLayers) window.removeEventListener("pointermove", moveLayers);
+        context.revert();
+      };
+    });
 
-    const moveLayers = (event: PointerEvent) => {
-      if (reducedMotion) return;
-      const horizontal = event.clientX / window.innerWidth - 0.5;
-      const vertical = event.clientY / window.innerHeight - 0.5;
-      gsap.to(host.querySelector(".gsap-layer--far"), { x: horizontal * -30, y: vertical * -20, duration: 1.1, ease: "power2.out", overwrite: "auto" });
-      gsap.to(host.querySelector(".gsap-layer--near"), { x: horizontal * 44, y: vertical * 30, duration: 0.75, ease: "power2.out", overwrite: "auto" });
-    };
-
-    window.addEventListener("pointermove", moveLayers, { passive: true });
     return () => {
-      window.removeEventListener("pointermove", moveLayers);
-      context.revert();
+      disposed = true;
+      cleanup();
     };
   }, [active]);
+
+  if (!active) return null;
 
   return (
     <div ref={hostRef} className="gsap-romantic-background" aria-hidden="true" data-engine="gsap" data-active={active}>

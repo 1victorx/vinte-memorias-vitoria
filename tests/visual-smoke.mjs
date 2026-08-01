@@ -26,6 +26,7 @@ async function enterPresent(page, size) {
   const welcome = page.locator(".welcome-screen");
   await page.getByRole("heading", { name: /você está pronta para ver o seu presente/i }).waitFor();
   assert.equal(await page.locator("main").getAttribute("inert"), "", `${size.name}: presente precisa ficar inativo durante as boas-vindas`);
+  assert.equal(await page.locator(".gsap-romantic-background").count(), 0, `${size.name}: fundo animado foi montado antes de entrar no presente`);
   const flowerPhoto = page.getByRole("img", { name: /flores cor-de-rosa/i });
   await flowerPhoto.waitFor();
   await flowerPhoto.evaluate((image) => image.decode());
@@ -216,10 +217,6 @@ for (const size of sizes) {
   const dateWindow = page.locator(".date-window");
   await dateWindow.waitFor();
   assert.equal(await dateWindow.locator(".calendar-day").count(), 31, `${size.name}: agosto precisa exibir todos os 31 dias`);
-  await dateWindow.getByRole("button", { name: /mês anterior/i }).click();
-  assert.match(await dateWindow.locator(".calendar-toolbar strong").textContent(), /julho de 2026/i, `${size.name}: calendário não navegou até julho`);
-  assert.equal(await dateWindow.locator(".calendar-day.has-memory").count(), 3, `${size.name}: julho precisa exibir três lembranças`);
-  assert.equal(await dateWindow.locator('.calendar-day[data-date="2026-07-26"]').isDisabled(), false, `${size.name}: data passada vazia precisa permitir registrar um encontro vivido`);
   const browserToday = await page.evaluate(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
@@ -227,6 +224,10 @@ for (const size of sizes) {
   const todayButton = dateWindow.locator(`.calendar-day[data-date="${browserToday}"]`);
   assert.ok((await todayButton.getAttribute("class"))?.includes("is-today"), `${size.name}: dia atual não está identificado`);
   assert.equal(await todayButton.isDisabled(), false, `${size.name}: data atual deveria continuar disponível`);
+  await dateWindow.getByRole("button", { name: /mês anterior/i }).click();
+  assert.match(await dateWindow.locator(".calendar-toolbar strong").textContent(), /julho de 2026/i, `${size.name}: calendário não navegou até julho`);
+  assert.equal(await dateWindow.locator(".calendar-day.has-memory").count(), 3, `${size.name}: julho precisa exibir três lembranças`);
+  assert.equal(await dateWindow.locator('.calendar-day[data-date="2026-07-26"]').isDisabled(), false, `${size.name}: data passada vazia precisa permitir registrar um encontro vivido`);
 
   const livedDay = dateWindow.locator('.calendar-day[data-memory-date="2026-07-25"]');
   await livedDay.hover();
@@ -324,6 +325,7 @@ await motionPage.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 60_000 
 await motionPage.locator('main[data-interactive="true"]').waitFor();
 await motionPage.getByRole("button", { name: "Sim", exact: true }).click();
 await motionPage.locator(".welcome-screen").waitFor({ state: "detached" });
+await motionPage.locator('.gsap-romantic-background[data-motion-ready="true"]').waitFor();
 const animatedFlowers = motionPage.locator(".gsap-flower");
 assert.equal(await animatedFlowers.count(), 6, "Cenário GSAP não carregou as seis flores");
 const animatedFlower = animatedFlowers.first();
