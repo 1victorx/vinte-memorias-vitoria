@@ -78,12 +78,15 @@ for (const size of sizes) {
   const quickPlayer = page.locator(".desktop-quick-player");
   await quickPlayer.waitFor();
   assert.equal(await quickPlayer.isVisible(), true, `${size.name}: tocador rápido não está visível na tela principal`);
-  const threeCanvas = page.locator(".three-romantic-canvas");
-  await threeCanvas.waitFor();
-  const threeBounds = await threeCanvas.boundingBox();
-  assert.ok(threeBounds && threeBounds.width >= size.width && threeBounds.height >= size.height - 30, `${size.name}: fundo Three.js não cobre a área de trabalho`);
-  const threeBackdrop = await page.locator(".three-romantic-background").evaluate((element) => getComputedStyle(element).backgroundImage);
-  assert.notEqual(threeBackdrop, "none", `${size.name}: fundo romântico não possui composição visual de apoio`);
+  const gsapBackground = page.locator(".gsap-romantic-background");
+  await gsapBackground.waitFor();
+  const gsapBounds = await gsapBackground.boundingBox();
+  assert.ok(gsapBounds && gsapBounds.width >= size.width && gsapBounds.height >= size.height - 30, `${size.name}: fundo GSAP não cobre a área de trabalho`);
+  assert.equal(await gsapBackground.getAttribute("data-engine"), "gsap", `${size.name}: fundo animado não está identificado como GSAP`);
+  assert.equal(await gsapBackground.locator(".gsap-flower").count(), 6, `${size.name}: flores animadas do fundo estão ausentes`);
+  assert.equal(await gsapBackground.locator(".gsap-heart").count(), 8, `${size.name}: corações animados do fundo estão ausentes`);
+  const gsapBackdrop = await gsapBackground.evaluate((element) => getComputedStyle(element).backgroundImage);
+  assert.notEqual(gsapBackdrop, "none", `${size.name}: fundo GSAP não possui contraste visual de apoio`);
   const quickPlayerBounds = await quickPlayer.boundingBox();
   const dockBounds = await page.locator(".desktop-dock").boundingBox();
   const progressBounds = await quickPlayer.locator(".quick-player-progress").boundingBox();
@@ -311,6 +314,20 @@ for (const size of [
   await context.close();
 }
 
+const motionContext = await browser.newContext({ viewport: { width: 1366, height: 768 }, reducedMotion: "no-preference" });
+const motionPage = await motionContext.newPage();
+await motionPage.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
+await motionPage.locator('main[data-interactive="true"]').waitFor();
+await motionPage.getByRole("button", { name: "Sim", exact: true }).click();
+await motionPage.locator(".welcome-screen").waitFor({ state: "detached" });
+const animatedFlowers = motionPage.locator(".gsap-flower");
+assert.equal(await animatedFlowers.count(), 6, "Cenário GSAP não carregou as seis flores");
+const animatedFlower = animatedFlowers.first();
+const transformBefore = await animatedFlower.evaluate((element) => getComputedStyle(element).transform);
+await motionPage.waitForTimeout(700);
+const transformAfter = await animatedFlower.evaluate((element) => getComputedStyle(element).transform);
+assert.notEqual(transformAfter, transformBefore, "GSAP não movimentou as flores quando animações estão permitidas");
+await motionContext.close();
 const narrowContext = await browser.newContext({ viewport: { width: 860, height: 700 } });
 const narrowPage = await narrowContext.newPage();
 await narrowPage.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });

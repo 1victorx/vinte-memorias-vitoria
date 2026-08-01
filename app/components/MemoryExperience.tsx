@@ -21,7 +21,7 @@ import {
   sessionCanEdit,
   type LivingMemoryRecord,
 } from "../lib/living-memories";
-import ThreeRomanticBackground from "./ThreeRomanticBackground";
+import GsapRomanticBackground from "./GsapRomanticBackground";
 
 type WindowName = "music" | "memory" | "archive" | "response" | "date" | "newMemory";
 type Point = { x: number; y: number };
@@ -1205,7 +1205,7 @@ export default function MemoryExperience() {
         </header>
 
         <section className="wallpaper" aria-label="Janelas abertas">
-          <ThreeRomanticBackground active={!welcomeVisible} />
+          <GsapRomanticBackground active={!welcomeVisible} />
           <div className="desktop-stamp" aria-hidden="true"><span>V + V</span><small>DESDE 2025</small></div>
 
           <aside

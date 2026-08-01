@@ -2424,25 +2424,11 @@ body * {
   box-shadow: 4px 6px 0 rgba(25,19,33,.24), 0 9px 18px rgba(101,42,70,.2);
 }
 
-/* Fundo 3D romântico e controles completos do tocador rápido */
+/* Camadas do papel de parede e controles completos do tocador rápido */
 .wallpaper { isolation: isolate; }
 .wallpaper::before,
 .wallpaper::after { z-index: 1; }
-.three-romantic-background {
-  position: absolute;
-  z-index: 0;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  opacity: .92;
-}
-.three-romantic-canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-  image-rendering: pixelated;
-  filter: saturate(.92) contrast(1.04);
-}
+
 .desktop-stamp { z-index: 2; }
 
 .desktop-quick-player {
@@ -2528,9 +2514,7 @@ body * {
   .desktop-quick-player { bottom: 8px; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .three-romantic-background { opacity: .72; }
-}
+
 /* Novos capítulos: janela viva conectada ao álbum online */
 .new-memory-window {
   top: 54px;
@@ -2819,19 +2803,7 @@ body * {
   height: min(610px, calc(100vh - 132px));
   min-height: 350px;
 }
-/* Correção visual: fundo Three.js legível e player sem sobreposição */
-.three-romantic-background {
-  opacity: 1;
-  background:
-    radial-gradient(circle at 12% 18%, rgba(153, 45, 91, .15), transparent 23%),
-    radial-gradient(circle at 88% 72%, rgba(112, 64, 143, .13), transparent 26%),
-    radial-gradient(circle at 70% 12%, rgba(255, 248, 222, .38), transparent 21%);
-}
-.three-romantic-canvas {
-  opacity: .96;
-  mix-blend-mode: multiply;
-  filter: saturate(1.18) contrast(1.1);
-}
+/* Correção visual: player organizado e sem sobreposição */
 
 .desktop-quick-player {
   z-index: 11;
@@ -2912,6 +2884,128 @@ body * {
 }
 .quick-shuffle-button.is-active span { color: inherit; }
 
+
+/* Fundo animado GSAP com contraste real */
+.wallpaper::before,
+.wallpaper::after { opacity: .14; }
+.gsap-romantic-background {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 10% 18%, rgba(143, 47, 89, .2), transparent 22%),
+    radial-gradient(circle at 88% 70%, rgba(114, 67, 147, .17), transparent 25%),
+    radial-gradient(circle at 55% 43%, rgba(255, 252, 235, .55), transparent 30%);
+}
+.gsap-layer {
+  position: absolute;
+  inset: -5%;
+  will-change: transform;
+}
+.gsap-orbit {
+  position: absolute;
+  border: 2px dashed rgba(125, 39, 79, .24);
+  border-radius: 50%;
+  box-shadow: inset 0 0 70px rgba(255, 255, 255, .22);
+  transform-origin: center;
+}
+.gsap-orbit::before,
+.gsap-orbit::after {
+  content: "♥";
+  position: absolute;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid rgba(111, 34, 70, .3);
+  border-radius: 50%;
+  background: rgba(255, 246, 249, .84);
+  color: rgba(137, 38, 82, .7);
+  font-size: 14px;
+  box-shadow: 3px 3px 0 rgba(111, 42, 74, .1);
+}
+.gsap-orbit::before { top: 8%; left: 12%; }
+.gsap-orbit::after { right: 12%; bottom: 8%; }
+.gsap-orbit--one {
+  top: -125px;
+  right: 13%;
+  width: 590px;
+  height: 590px;
+}
+.gsap-orbit--two {
+  bottom: -135px;
+  left: 6%;
+  width: 360px;
+  height: 360px;
+  border-style: dotted;
+}
+.gsap-flower {
+  position: absolute;
+  display: block;
+  opacity: .86;
+  filter: drop-shadow(5px 7px 0 rgba(112, 39, 74, .12));
+  transform-origin: center;
+  will-change: transform;
+}
+.gsap-flower i {
+  position: absolute;
+  top: 3%;
+  left: 35%;
+  display: block;
+  width: 30%;
+  height: 52%;
+  border: 1px solid rgba(105, 31, 64, .42);
+  border-radius: 58% 42% 60% 40%;
+  background: linear-gradient(180deg, rgba(255, 245, 249, .95), rgba(223, 98, 147, .82));
+  box-shadow: inset 3px 0 0 rgba(255, 255, 255, .28);
+  transform-origin: 50% 94%;
+}
+.gsap-flower b {
+  position: absolute;
+  z-index: 2;
+  top: 36%;
+  left: 36%;
+  display: block;
+  width: 28%;
+  height: 28%;
+  border: 2px solid rgba(98, 53, 45, .5);
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 35%, #ffe89a, #c77a51 72%);
+  box-shadow: 0 0 0 5px rgba(255, 234, 163, .24), 3px 4px 0 rgba(87, 41, 55, .14);
+}
+.gsap-flower--2 i { background: linear-gradient(180deg, rgba(255, 249, 253, .96), rgba(190, 137, 215, .82)); }
+.gsap-flower--3 i { background: linear-gradient(180deg, rgba(255, 249, 236, .96), rgba(239, 149, 174, .85)); }
+.gsap-heart {
+  position: absolute;
+  color: rgba(132, 34, 78, .62);
+  line-height: 1;
+  text-shadow: 2px 2px 0 rgba(255, 255, 255, .7), 5px 6px 0 rgba(111, 42, 74, .1);
+  will-change: transform;
+}
+.gsap-petal {
+  position: absolute;
+  display: block;
+  width: 34px;
+  height: 19px;
+  border: 1px solid rgba(104, 33, 68, .38);
+  border-radius: 85% 15% 75% 25%;
+  background: linear-gradient(135deg, rgba(255, 239, 246, .96), rgba(211, 79, 132, .72));
+  box-shadow: 3px 4px 0 rgba(111, 42, 74, .1);
+  opacity: .78;
+  will-change: transform;
+}
+.gsap-petal:nth-of-type(3n) { background: linear-gradient(135deg, rgba(249, 239, 255, .96), rgba(165, 111, 194, .7)); }
+.gsap-sparkle {
+  position: absolute;
+  color: rgba(119, 34, 74, .72);
+  font-size: 14px;
+  opacity: .28;
+  text-shadow: 0 0 8px rgba(255, 255, 255, .9);
+  will-change: transform, opacity;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .three-romantic-canvas { opacity: .88; }
+  .gsap-romantic-background [class*="gsap-"] { transform: none !important; }
 }
