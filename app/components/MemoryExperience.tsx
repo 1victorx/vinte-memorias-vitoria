@@ -83,6 +83,8 @@ const formatLivingMemoryDate = (isoDate: string) =>
   new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
     .format(new Date(isoDate + "T12:00:00"));
 const encounterStorageKey = "encontros-agendados-vitoria";
+const rouletteStorageKey = "ideias-da-roleta-vitoria";
+const customRouletteLimit = 8;
 const dateIdeas: DateIdea[] = [
   {
     title: "Piquenique ao pôr do sol",
@@ -141,6 +143,32 @@ const dateIdeas: DateIdea[] = [
     description: "Escolher sabores um para o outro e passear de mãos dadas enquanto colocamos a conversa em dia.",
   },
 ];
+
+function isCustomDateIdea(value: unknown): value is DateIdea {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<DateIdea>;
+  return (
+    typeof candidate.title === "string" &&
+    candidate.title.length >= 3 && candidate.title.length <= 70 &&
+    candidate.icon === "✦" &&
+    candidate.outing === "Outro lugar" &&
+    typeof candidate.place === "string" &&
+    candidate.place.length >= 2 && candidate.place.length <= 100 &&
+    typeof candidate.description === "string" &&
+    candidate.description.length >= 3 && candidate.description.length <= 280
+  );
+}
+
+function readCustomDateIdeas(raw: string | null) {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(isCustomDateIdea).slice(0, customRouletteLimit);
+  } catch {
+    return [];
+  }
+}
 
 function isScheduledEncounter(value: unknown): value is ScheduledEncounter {
   if (!value || typeof value !== "object") return false;
@@ -288,6 +316,9 @@ export default function MemoryExperience() {
   const [rouletteSpinning, setRouletteSpinning] = useState(false);
   const [rouletteHasResult, setRouletteHasResult] = useState(false);
   const [rouletteSuggestion, setRouletteSuggestion] = useState<DateIdea | null>(null);
+  const [customDateIdeas, setCustomDateIdeas] = useState<DateIdea[]>([]);
+  const [rouletteAdding, setRouletteAdding] = useState(false);
+  const [rouletteMessage, setRouletteMessage] = useState("");
   const [todayIso, setTodayIso] = useState("");
   const [scheduledEncounters, setScheduledEncounters] = useState<Record<string, ScheduledEncounter>>({});
   const [recordDate, setRecordDate] = useState("");
@@ -382,6 +413,7 @@ export default function MemoryExperience() {
     })),
     ...onlineDisplayMemories,
   ];
+  const allDateIdeas = [...dateIdeas, ...customDateIdeas];
   const activeMemory = allMemories[Math.min(activeMemoryIndex, allMemories.length - 1)];
   const selectedSong = memories[selectedSongIndex].song;
   const progress = duration ? (currentTime / duration) * 100 : 0;
@@ -468,6 +500,7 @@ export default function MemoryExperience() {
     const timer = window.setInterval(refreshToday, 30_000);
     const storageFrame = window.requestAnimationFrame(() => {
       setScheduledEncounters(readScheduledEncounters(localStorage.getItem(encounterStorageKey)));
+      setCustomDateIdeas(readCustomDateIdeas(localStorage.getItem(rouletteStorageKey)));
     });
     return () => {
       window.clearInterval(timer);
@@ -1030,18 +1063,69 @@ export default function MemoryExperience() {
 
   function openDateRoulette() {
     setDateError("");
+    setRouletteMessage("");
     setDateStep("roulette");
+  }
+
+  function addCustomDateIdea(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (customDateIdeas.length >= customRouletteLimit) {
+      setRouletteMessage(`A roleta já recebeu o limite de ${customRouletteLimit} ideias novas.`);
+      return;
+    }
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const title = String(formData.get("Nome da ideia") ?? "").trim();
+    const place = String(formData.get("Local da ideia") ?? "").trim();
+    const description = String(formData.get("Descrição da ideia") ?? "").trim();
+    if (title.length < 3 || title.length > 70 || place.length < 2 || place.length > 100 || description.length < 3 || description.length > 280) {
+      setRouletteMessage("Revise o nome, o local e a descrição antes de adicionar a ideia.");
+      return;
+    }
+    if (allDateIdeas.some((idea) => idea.title.localeCompare(title, "pt-BR", { sensitivity: "base" }) === 0)) {
+      setRouletteMessage("Essa ideia já está na roleta. Escolha um nome diferente.");
+      return;
+    }
+    const newIdea: DateIdea = { title, icon: "✦", outing: "Outro lugar", place, description };
+    const nextIdeas = [...customDateIdeas, newIdea];
+    try {
+      localStorage.setItem(rouletteStorageKey, JSON.stringify(nextIdeas));
+      setCustomDateIdeas(nextIdeas);
+      setRouletteMessage(`“${title}” foi adicionada à roleta!`);
+      setRouletteAdding(false);
+      setRouletteHasResult(false);
+      form.reset();
+    } catch {
+      setRouletteMessage("Não foi possível guardar essa ideia neste computador.");
+    }
+  }
+
+  function removeCustomDateIdea(index: number) {
+    if (rouletteSpinning) return;
+    const idea = customDateIdeas[index];
+    if (!idea || !window.confirm(`Remover “${idea.title}” da roleta?`)) return;
+    const nextIdeas = customDateIdeas.filter((_, ideaIndex) => ideaIndex !== index);
+    try {
+      localStorage.setItem(rouletteStorageKey, JSON.stringify(nextIdeas));
+      setCustomDateIdeas(nextIdeas);
+      setRouletteIndex(0);
+      setRouletteRotation(0);
+      setRouletteHasResult(false);
+      setRouletteMessage("Ideia removida da roleta.");
+    } catch {
+      setRouletteMessage("Não foi possível remover essa ideia agora.");
+    }
   }
 
   function spinDateRoulette() {
     if (rouletteSpinning) return;
-    const nextIndex = dateIdeas.length < 2
+    const nextIndex = allDateIdeas.length < 2
       ? 0
-      : (rouletteIndex + 1 + Math.floor(Math.random() * (dateIdeas.length - 1))) % dateIdeas.length;
-    const segmentAngle = 360 / dateIdeas.length;
+      : (rouletteIndex + 1 + Math.floor(Math.random() * (allDateIdeas.length - 1))) % allDateIdeas.length;
+    const segmentAngle = 360 / allDateIdeas.length;
     const currentMod = ((rouletteRotation % 360) + 360) % 360;
     const targetMod = (360 - nextIndex * segmentAngle) % 360;
-    const finalRotation = rouletteRotation + 360 * 5 + ((targetMod - currentMod + 360) % 360);
+    const finalRotation = rouletteRotation + 360 * 8 + ((targetMod - currentMod + 360) % 360);
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     if (rouletteTimer.current) window.clearTimeout(rouletteTimer.current);
@@ -1053,12 +1137,12 @@ export default function MemoryExperience() {
       setRouletteSpinning(false);
       setRouletteHasResult(true);
       rouletteTimer.current = null;
-    }, reducedMotion ? 80 : 2700);
+    }, reducedMotion ? 80 : 4700);
   }
 
   function useRouletteIdea() {
     const now = new Date();
-    setRouletteSuggestion(dateIdeas[rouletteIndex]);
+    setRouletteSuggestion(allDateIdeas[rouletteIndex]);
     setCalendarMonth({ year: now.getFullYear(), month: now.getMonth() });
     setSelectedDate("");
     setDateError("");
@@ -1659,20 +1743,20 @@ export default function MemoryExperience() {
                     <div className="roulette-copy">
                       <span>DEIXA O DESTINO ESCOLHER</span>
                       <h2 id="roulette-heading">Qual será o nosso próximo encontro?</h2>
-                      <p>Gire a roleta e descubra uma ideia preparada para nós dois.</p>
+                      <p>Gire a roleta e descubra uma ideia preparada para nós dois. <strong>{allDateIdeas.length} ideias disponíveis.</strong></p>
                     </div>
                     <div className="roulette-stage">
                       <span className="roulette-pointer" aria-hidden="true">♥</span>
                       <div
                         className={`roulette-wheel${rouletteSpinning ? " is-spinning" : ""}`}
-                        style={{ "--roulette-rotation": `${rouletteRotation}deg` } as CSSProperties}
+                        style={{ "--roulette-rotation": `${rouletteRotation}deg`, "--roulette-segment-angle": `${360 / allDateIdeas.length}deg`, "--roulette-start-angle": `${-180 / allDateIdeas.length}deg` } as CSSProperties}
                         aria-hidden="true"
                       >
-                        {dateIdeas.map((idea, index) => (
+                        {allDateIdeas.map((idea, index) => (
                           <span
                             className="roulette-idea"
-                            style={{ "--idea-angle": `${index * (360 / dateIdeas.length)}deg` } as CSSProperties}
-                            key={idea.title}
+                            style={{ "--idea-angle": `${index * (360 / allDateIdeas.length)}deg` } as CSSProperties}
+                            key={`${idea.title}-${index}`}
                           >
                             <i>{idea.icon}</i>
                           </span>
@@ -1686,7 +1770,7 @@ export default function MemoryExperience() {
                       {rouletteSpinning ? (
                         <p>A roleta está escolhendo um encontro bonito para vocês...</p>
                       ) : rouletteHasResult ? (
-                        <><span>{dateIdeas[rouletteIndex].icon}</span><div><small>A ROLETA ESCOLHEU</small><h3>{dateIdeas[rouletteIndex].title}</h3><p>{dateIdeas[rouletteIndex].description}</p></div></>
+                        <><span>{allDateIdeas[rouletteIndex].icon}</span><div><small>A ROLETA ESCOLHEU</small><h3>{allDateIdeas[rouletteIndex].title}</h3><p>{allDateIdeas[rouletteIndex].description}</p></div></>
                       ) : (
                         <p>Clique em <strong>GIRAR</strong> e deixe o acaso preparar o próximo capítulo.</p>
                       )}
@@ -1694,7 +1778,34 @@ export default function MemoryExperience() {
                     <div className="roulette-actions">
                       <button type="button" className="secondary" onClick={spinDateRoulette} disabled={rouletteSpinning}>{rouletteHasResult ? "GIRAR DE NOVO" : "SORTEAR UMA IDEIA"}</button>
                       {rouletteHasResult && <button type="button" onClick={useRouletteIdea}>ESCOLHER UMA DATA ♡</button>}
+                      <button
+                        type="button"
+                        className="roulette-add-toggle"
+                        aria-expanded={rouletteAdding}
+                        onClick={() => { setRouletteAdding((current) => !current); setRouletteMessage(""); }}
+                        disabled={rouletteSpinning || (!rouletteAdding && customDateIdeas.length >= customRouletteLimit)}
+                      >
+                        {customDateIdeas.length >= customRouletteLimit ? "LIMITE ATINGIDO" : rouletteAdding ? "FECHAR CADASTRO" : "＋ ADICIONAR IDEIA"}
+                      </button>
                     </div>
+                    {rouletteMessage && <p className="roulette-message" role="status">{rouletteMessage}</p>}
+                    {rouletteAdding && (
+                      <form className="roulette-add-form" onSubmit={addCustomDateIdea}>
+                        <header><span aria-hidden="true">✦</span><div><strong>Adicionar uma ideia à roleta</strong><small>Ela ficará guardada neste computador.</small></div></header>
+                        <div className="roulette-add-grid">
+                          <label htmlFor="roulette-new-title">NOME DA IDEIA<input id="roulette-new-title" name="Nome da ideia" minLength={3} maxLength={70} placeholder="Ex.: Noite de jogos e pizza" required /></label>
+                          <label htmlFor="roulette-new-place">ONDE SERIA?<input id="roulette-new-place" name="Local da ideia" minLength={2} maxLength={100} placeholder="Ex.: Em casa ou no nosso lugar favorito" required /></label>
+                          <label className="roulette-add-description" htmlFor="roulette-new-description">COMO SERIA ESSE ENCONTRO?<textarea id="roulette-new-description" name="Descrição da ideia" minLength={3} maxLength={280} placeholder="Conte os detalhes da ideia..." required /></label>
+                        </div>
+                        <button type="submit">COLOCAR NA ROLETA ♡</button>
+                      </form>
+                    )}
+                    {customDateIdeas.length > 0 && (
+                      <section className="roulette-custom-list" aria-label="Ideias adicionadas à roleta">
+                        <header><strong>SUAS IDEIAS</strong><span>{customDateIdeas.length}/{customRouletteLimit}</span></header>
+                        <ul>{customDateIdeas.map((idea, index) => <li key={`${idea.title}-${index}`}><span>✦</span><strong>{idea.title}</strong><button type="button" onClick={() => removeCustomDateIdea(index)} disabled={rouletteSpinning} aria-label={`Remover ${idea.title} da roleta`}>×</button></li>)}</ul>
+                      </section>
+                    )}
                   </section>
                 )}
 

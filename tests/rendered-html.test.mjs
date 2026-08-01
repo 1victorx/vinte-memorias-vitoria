@@ -167,6 +167,10 @@ test("inclui a fotografia fornecida e as regras locais do calendário", async ()
   assert.match(component, /spinDateRoulette/);
   assert.match(component, /Piquenique ao pôr do sol/);
   assert.match(component, /ESCOLHER UMA DATA/);
+  assert.match(component, /ideias-da-roleta-vitoria/);
+  assert.match(component, /addCustomDateIdea/);
+  assert.match(component, /COLOCAR NA ROLETA/);
+  assert.match(component, /reducedMotion \? 80 : 4700/);
   assert.doesNotMatch(memoriesData, /memory-09-02\.jpg/);
   assert.match(component, /desktop-quick-player/);
   assert.match(component, /quick-player-drag-handle/);

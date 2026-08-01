@@ -25,7 +25,7 @@ romântica inspirada em interfaces antigas, e é publicado gratuitamente pelo Gi
 - Janela **Nova memória** para continuar o álbum: data, título, abertura, relato, mensagem escondida e até seis fotos, sincronizados online em tempo real.
 - Campo para Vitória enviar uma resposta ao Victor.
 - Janela de encontro com calendário mensal completo: datas passadas livres registram encontros vividos, enquanto hoje e datas futuras marcam os próximos passeios.
-- Roleta de encontros incorporada ao calendário, com oito ideias personalizadas e preenchimento automático do passeio sorteado ao escolher uma data.
+- Roleta de encontros incorporada ao calendário, com giro de suspense, oito ideias iniciais, cadastro de até oito novas opções persistentes e preenchimento automático do passeio sorteado ao escolher uma data.
 - 36 encontros vividos de 2025 e 2026 já destacados com cor, flor e contorno; novas lembranças e encontros aparecem imediatamente e registros existentes abrem seus detalhes.
 - Layout testado em 1366 × 768, 1440 × 900, 1536 × 864 e 1920 × 1080, além de equivalentes a zoom de 125% e 150%.
 - Navegação por teclado, foco visível e redução de movimento.

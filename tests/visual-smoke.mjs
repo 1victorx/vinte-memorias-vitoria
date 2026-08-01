@@ -222,6 +222,14 @@ for (const size of sizes) {
   if (size.name === "desktop-1366") {
     await dateWindow.getByRole("button", { name: /roleta de encontros/i }).click();
     await dateWindow.locator(".roulette-step").waitFor();
+    await dateWindow.getByRole("button", { name: /adicionar ideia/i }).click();
+    await dateWindow.getByLabel(/nome da ideia/i).fill("Noite de jogos e pizza");
+    await dateWindow.getByLabel(/onde seria/i).fill("Na nossa casa");
+    await dateWindow.getByLabel(/como seria esse encontro/i).fill("Escolher nossos jogos favoritos, pedir pizza e preparar uma sobremesa.");
+    await dateWindow.getByRole("button", { name: /colocar na roleta/i }).click();
+    assert.equal(await dateWindow.locator(".roulette-idea").count(), 9, `${size.name}: ideia personalizada não entrou na roleta`);
+    const storedRouletteIdeas = await page.evaluate(() => JSON.parse(localStorage.getItem("ideias-da-roleta-vitoria") ?? "[]"));
+    assert.equal(storedRouletteIdeas[0]?.title, "Noite de jogos e pizza", `${size.name}: ideia personalizada não foi guardada`);
     await dateWindow.getByRole("button", { name: "GIRAR", exact: true }).click();
     await dateWindow.locator(".roulette-result.has-result").waitFor();
     assert.match(await dateWindow.locator(".roulette-result").textContent(), /a roleta escolheu/i, `${size.name}: roleta não apresentou o resultado`);
@@ -346,6 +354,15 @@ const transformBefore = await animatedFlower.evaluate((element) => getComputedSt
 await motionPage.waitForTimeout(700);
 const transformAfter = await animatedFlower.evaluate((element) => getComputedStyle(element).transform);
 assert.notEqual(transformAfter, transformBefore, "GSAP não movimentou as flores quando animações estão permitidas");
+await motionPage.locator(".desktop-dock").getByRole("button", { name: "Encontro", exact: true }).click();
+const motionDateWindow = motionPage.locator(".date-window");
+await motionDateWindow.getByRole("button", { name: /roleta de encontros/i }).click();
+const rouletteDuration = await motionDateWindow.locator(".roulette-wheel").evaluate((wheel) => getComputedStyle(wheel).transitionDuration);
+assert.equal(rouletteDuration, "4.6s", "Roleta não manteve o giro lento de suspense");
+const suspenseSpin = motionDateWindow.locator(".roulette-spin");
+await suspenseSpin.click();
+await motionPage.waitForTimeout(500);
+assert.equal(await suspenseSpin.isDisabled(), true, "Roleta terminou antes do tempo de suspense");
 await motionContext.close();
 const narrowContext = await browser.newContext({ viewport: { width: 860, height: 700 } });
 const narrowPage = await narrowContext.newPage();
