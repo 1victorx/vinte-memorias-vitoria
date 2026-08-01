@@ -157,8 +157,11 @@ for (const size of sizes) {
     await page.keyboard.press("Enter");
     const appWindow = page.locator(selector);
     await appWindow.waitFor();
-    await appWindow.getByRole("button", { name: /fechar/i }).click();
+    assert.equal(await dockButton.getAttribute("aria-pressed"), "true", `${size.name}: ${label} não indicou que a janela foi aberta`);
+    await dockButton.focus();
+    await page.keyboard.press("Enter");
     await appWindow.waitFor({ state: "detached" });
+    assert.equal(await dockButton.getAttribute("aria-pressed"), "false", `${size.name}: ${label} não indicou que a janela foi fechada`);
   }
   assert.equal(await page.locator(".os-window").count(), 0, `${size.name}: uma janela permaneceu aberta após o fechamento`);
 
