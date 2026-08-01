@@ -3020,3 +3020,270 @@ body * {
 @media (prefers-reduced-motion: reduce) {
   .desktop-stamp { transform: translate(-50%, -50%) rotate(-8deg) !important; }
 }
+/* Integrated romantic date roulette */
+.date-view-switch {
+  position: sticky;
+  z-index: 8;
+  top: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  padding: 8px 18px 7px;
+  background: linear-gradient(180deg, #fffaf8 78%, rgba(255,250,248,0));
+}
+.date-view-switch button {
+  min-height: 34px;
+  border: 1px solid rgba(111,69,89,.55);
+  border-radius: 7px 3px 7px 3px;
+  background: rgba(255,255,255,.9);
+  color: #654252;
+  box-shadow: 2px 2px 0 rgba(101,42,70,.1);
+  font: 700 10px Georgia, serif;
+  letter-spacing: .04em;
+  cursor: pointer;
+  transition: background-color 140ms ease, box-shadow 140ms ease, color 140ms ease;
+}
+.date-view-switch button span { margin-right: 5px; font-size: 13px; }
+.date-view-switch button[aria-pressed="true"] {
+  border-color: #843555;
+  background: #c96288;
+  color: #fffafc;
+  box-shadow: inset 0 -3px 0 #843555, 3px 3px 0 rgba(101,42,70,.13);
+}
+.date-view-switch button:hover,
+.date-view-switch button:focus-visible {
+  border-color: #843555;
+  background: #efacc1;
+  color: #54152f;
+  outline: 2px solid rgba(84,21,47,.2);
+  outline-offset: 2px;
+}
+.roulette-calendar-note {
+  display: grid;
+  grid-template-columns: 38px 1fr 28px;
+  align-items: center;
+  gap: 9px;
+  margin-top: 7px;
+  padding: 7px 8px;
+  border: 1px solid #9d5573;
+  border-radius: 8px 3px 8px 3px;
+  background: #f9dce5;
+  box-shadow: inset 4px 0 0 #b14771, 3px 3px 0 rgba(101,42,70,.1);
+}
+.roulette-calendar-note > span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid #9b4668;
+  border-radius: 50%;
+  background: #fff9fb;
+  color: #8f2f59;
+  font-size: 17px;
+}
+.roulette-calendar-note p { margin: 0; color: #654252; font: 11px/1.25 Georgia, serif; }
+.roulette-calendar-note small,
+.roulette-calendar-note strong { display: block; }
+.roulette-calendar-note small { color: #9a3c63; font-size: 8px; font-weight: 700; letter-spacing: .1em; }
+.roulette-calendar-note strong { margin: 2px 0; color: #5c1e3a; font-size: 13px; }
+.roulette-calendar-note button {
+  width: 27px;
+  height: 27px;
+  border: 1px solid #9d5573;
+  border-radius: 6px 2px 6px 2px;
+  background: #fff9fb;
+  color: #6c2947;
+  cursor: pointer;
+  font-size: 17px;
+}
+.roulette-calendar-note button:hover,
+.roulette-calendar-note button:focus-visible { background: #efacc1; outline: 2px solid #6c2947; outline-offset: 2px; }
+.roulette-step {
+  display: flex;
+  min-height: calc(100% - 49px);
+  flex-direction: column;
+  align-items: center;
+  padding: 2px 18px 16px;
+}
+.roulette-copy {
+  width: 100%;
+  padding: 10px 12px 9px;
+  border: 1px solid rgba(111,69,89,.45);
+  border-radius: 8px 4px 8px 4px;
+  background: rgba(255,255,255,.84);
+  box-shadow: 4px 4px 0 rgba(169,52,103,.09);
+  text-align: center;
+}
+.roulette-copy > span,
+.roulette-result small {
+  color: #9b3b63;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .12em;
+}
+.roulette-copy h2 {
+  margin: 4px 0 3px;
+  color: #7d294c;
+  font: italic 22px/1.1 Georgia, serif;
+}
+.roulette-copy p { margin: 0; color: #65525d; font: 12px/1.3 Georgia, serif; }
+.roulette-stage {
+  position: relative;
+  display: grid;
+  width: 282px;
+  height: 282px;
+  flex: 0 0 auto;
+  place-items: center;
+  margin: 10px auto 8px;
+}
+.roulette-pointer {
+  position: absolute;
+  z-index: 4;
+  top: -2px;
+  left: 50%;
+  display: grid;
+  width: 38px;
+  height: 32px;
+  place-items: center;
+  color: #7d294c;
+  filter: drop-shadow(0 2px 0 #fff);
+  font-size: 24px;
+  line-height: 1;
+  transform: translateX(-50%);
+}
+.roulette-wheel {
+  --roulette-rotation: 0deg;
+  position: relative;
+  width: 266px;
+  height: 266px;
+  border: 4px double #6f354d;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, transparent 0 30%, rgba(255,255,255,.42) 30.5% 31.5%, transparent 32%),
+    conic-gradient(from -22.5deg, #f4b6c9 0 12.5%, #ead9f2 12.5% 25%, #f7d9b8 25% 37.5%, #f2a8c0 37.5% 50%, #d9e8df 50% 62.5%, #f0cce0 62.5% 75%, #f5d6a8 75% 87.5%, #e5bfd7 87.5% 100%);
+  box-shadow: 0 11px 0 rgba(108,41,71,.13), 0 17px 24px rgba(97,39,64,.2), inset 0 0 0 5px rgba(255,255,255,.72);
+  transform: rotate(var(--roulette-rotation));
+  transition: transform 2.7s cubic-bezier(.12,.68,.08,1);
+  will-change: transform;
+}
+.roulette-wheel::after {
+  content: "";
+  position: absolute;
+  inset: 13px;
+  border: 1px dashed rgba(94,34,61,.38);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.roulette-idea {
+  --idea-angle: 0deg;
+  position: absolute;
+  z-index: 2;
+  top: calc(50% - 16px);
+  left: calc(50% - 16px);
+  display: block;
+  width: 32px;
+  height: 32px;
+  transform: rotate(var(--idea-angle)) translateY(-98px);
+  transform-origin: 16px 16px;
+}
+.roulette-idea i {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid rgba(100,31,61,.62);
+  border-radius: 7px 3px 7px 3px;
+  background: rgba(255,252,249,.88);
+  color: #702044;
+  box-shadow: 2px 2px 0 rgba(93,30,57,.12);
+  font: normal 17px Georgia, serif;
+}
+.roulette-spin {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  width: 82px;
+  height: 82px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 3px double #6f354d;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #fffaf7, #efb2c5);
+  color: #671f3e;
+  box-shadow: 0 5px 0 #9a4969, 0 9px 16px rgba(95,32,58,.24), inset 0 2px 0 #fff;
+  font: 700 11px Georgia, serif;
+  letter-spacing: .05em;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.roulette-spin span { font-size: 18px; line-height: 1; }
+.roulette-spin:hover,
+.roulette-spin:focus-visible { transform: translateY(-2px); box-shadow: 0 7px 0 #9a4969, 0 12px 18px rgba(95,32,58,.27), inset 0 2px 0 #fff; outline: 3px solid rgba(103,31,62,.23); outline-offset: 3px; }
+.roulette-spin:active { transform: translateY(3px); box-shadow: 0 2px 0 #9a4969, 0 5px 9px rgba(95,32,58,.2); }
+.roulette-spin:disabled { cursor: wait; opacity: .82; }
+.roulette-result {
+  display: flex;
+  width: min(500px, 100%);
+  min-height: 68px;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  padding: 9px 12px;
+  border: 1px dashed #a05a77;
+  border-radius: 9px 4px 9px 4px;
+  background: rgba(255,255,255,.76);
+  color: #65525d;
+  text-align: center;
+}
+.roulette-result > p { margin: 0; font: 12px/1.4 Georgia, serif; }
+.roulette-result.has-result { justify-content: flex-start; border-style: solid; background: #fff8fa; text-align: left; box-shadow: 4px 4px 0 rgba(111,42,72,.1); }
+.roulette-result > span {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #a05a77;
+  border-radius: 8px 3px 8px 3px;
+  background: #f6c3d2;
+  color: #6a2341;
+  font-size: 24px;
+}
+.roulette-result h3 { margin: 2px 0 2px; color: #671f3e; font: 700 15px Georgia, serif; }
+.roulette-result div p { margin: 0; color: #65525d; font: 11px/1.3 Georgia, serif; }
+.roulette-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 9px;
+}
+.roulette-actions button {
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid #7b3654;
+  border-radius: 7px 3px 7px 3px;
+  background: #c96288;
+  color: white;
+  box-shadow: 2px 3px 0 rgba(83,26,51,.2), inset 0 1px 0 rgba(255,255,255,.55);
+  font: 700 10px Georgia, serif;
+  cursor: pointer;
+}
+.roulette-actions .secondary { background: #fff9fb; color: #6b2947; }
+.roulette-actions button:hover,
+.roulette-actions button:focus-visible { background: #efacc1; color: #54152f; outline: 2px solid #6b2947; outline-offset: 2px; }
+.roulette-actions button:disabled { cursor: wait; opacity: .58; }
+.os-window.is-maximized .roulette-step { width: min(760px, 100%); margin: 0 auto; }
+@media (max-height: 800px) and (min-width: 900px) {
+  .date-view-switch { padding-top: 5px; padding-bottom: 4px; }
+  .roulette-copy { padding-top: 7px; padding-bottom: 6px; }
+  .roulette-stage { width: 226px; height: 226px; margin: 6px auto; }
+  .roulette-wheel { width: 214px; height: 214px; }
+  .roulette-idea { transform: rotate(var(--idea-angle)) translateY(-76px); }
+  .roulette-spin { width: 68px; height: 68px; }
+  .roulette-result { min-height: 60px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .roulette-wheel { transition-duration: .01ms; }
+  .roulette-spin { transition: none; }
+}

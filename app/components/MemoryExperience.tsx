@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import {
+  CSSProperties,
   FormEvent,
   PointerEvent as ReactPointerEvent,
   useCallback,
@@ -39,7 +40,14 @@ type QuickPlayerDragState = {
   rect: DOMRect;
   point: Point;
 };
-type DateStep = "calendar" | "confirm" | "details" | "record";
+type DateStep = "calendar" | "roulette" | "confirm" | "details" | "record";
+type DateIdea = {
+  title: string;
+  icon: string;
+  outing: string;
+  place: string;
+  description: string;
+};
 type ScheduledEncounter = {
   date: string;
   kind: "lived" | "planned";
@@ -75,6 +83,64 @@ const formatLivingMemoryDate = (isoDate: string) =>
   new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long", year: "numeric" })
     .format(new Date(isoDate + "T12:00:00"));
 const encounterStorageKey = "encontros-agendados-vitoria";
+const dateIdeas: DateIdea[] = [
+  {
+    title: "Piquenique ao pôr do sol",
+    icon: "☀",
+    outing: "Parque ou praia",
+    place: "Uma praia ou parque bonito",
+    description: "Levar nossas comidas favoritas, flores e uma toalha para ver o pôr do sol juntinhos.",
+  },
+  {
+    title: "Cinema escolhido no sorteio",
+    icon: "★",
+    outing: "Cinema",
+    place: "O cinema que tiver a melhor sessão",
+    description: "Escolher o filme na hora, dividir pipoca e transformar a sessão em mais uma memória nossa.",
+  },
+  {
+    title: "Café e sobremesa nova",
+    icon: "☕",
+    outing: "Café ou confeitaria",
+    place: "Uma cafeteria que ainda não conhecemos",
+    description: "Provar uma sobremesa diferente, conversar sem pressa e avaliar juntos cada pedido.",
+  },
+  {
+    title: "Um dia digno da Rapunzel",
+    icon: "✿",
+    outing: "Passeio surpresa",
+    place: "Um lugar com flores, luzes ou uma vista bonita",
+    description: "Um passeio inspirado em Rapunzel, com flores, fotos e uma surpresa romântica preparada com carinho.",
+  },
+  {
+    title: "Maratona The Walking Dead",
+    icon: "☠",
+    outing: "Outro lugar",
+    place: "Nossa sala de cinema particular",
+    description: "Preparar lanches, escolher nossos episódios favoritos e fazer uma maratona confortável de The Walking Dead.",
+  },
+  {
+    title: "Museu e caminhada sem roteiro",
+    icon: "◇",
+    outing: "Passeio surpresa",
+    place: "Um museu e as ruas ao redor",
+    description: "Conhecer uma exposição, tirar fotos e depois caminhar sem pressa até encontrarmos um lugar interessante.",
+  },
+  {
+    title: "Jantar preparado a dois",
+    icon: "♨",
+    outing: "Outro lugar",
+    place: "Nossa cozinha",
+    description: "Escolher uma receita, cozinhar juntos e montar uma mesa bonita para o nosso jantar.",
+  },
+  {
+    title: "Sorvete e passeio de mãos dadas",
+    icon: "♡",
+    outing: "Café ou confeitaria",
+    place: "Uma sorveteria perto de um lugar gostoso para caminhar",
+    description: "Escolher sabores um para o outro e passear de mãos dadas enquanto colocamos a conversa em dia.",
+  },
+];
 
 function isScheduledEncounter(value: unknown): value is ScheduledEncounter {
   if (!value || typeof value !== "object") return false;
@@ -217,6 +283,11 @@ export default function MemoryExperience() {
   const [savedMessage, setSavedMessage] = useState(false);
   const [dateRequestSaved, setDateRequestSaved] = useState(false);
   const [dateStep, setDateStep] = useState<DateStep>("calendar");
+  const [rouletteIndex, setRouletteIndex] = useState(0);
+  const [rouletteRotation, setRouletteRotation] = useState(0);
+  const [rouletteSpinning, setRouletteSpinning] = useState(false);
+  const [rouletteHasResult, setRouletteHasResult] = useState(false);
+  const [rouletteSuggestion, setRouletteSuggestion] = useState<DateIdea | null>(null);
   const [todayIso, setTodayIso] = useState("");
   const [scheduledEncounters, setScheduledEncounters] = useState<Record<string, ScheduledEncounter>>({});
   const [recordDate, setRecordDate] = useState("");
@@ -268,6 +339,7 @@ export default function MemoryExperience() {
   const lastEscapeTime = useRef(Number.NEGATIVE_INFINITY);
   const escapeCount = useRef(0);
   const welcomeTimer = useRef<number | null>(null);
+  const rouletteTimer = useRef<number | null>(null);
   const desktopRef = useRef<HTMLElement>(null);
   const ambienceRef = useRef<HTMLDivElement>(null);
   const mousePetalCount = useRef(0);
@@ -331,6 +403,7 @@ export default function MemoryExperience() {
 
   useEffect(() => () => {
     if (welcomeTimer.current) window.clearTimeout(welcomeTimer.current);
+    if (rouletteTimer.current) window.clearTimeout(rouletteTimer.current);
   }, []);
 
   useEffect(() => {
@@ -955,6 +1028,43 @@ export default function MemoryExperience() {
     event.currentTarget.reset();
   }
 
+  function openDateRoulette() {
+    setDateError("");
+    setDateStep("roulette");
+  }
+
+  function spinDateRoulette() {
+    if (rouletteSpinning) return;
+    const nextIndex = dateIdeas.length < 2
+      ? 0
+      : (rouletteIndex + 1 + Math.floor(Math.random() * (dateIdeas.length - 1))) % dateIdeas.length;
+    const segmentAngle = 360 / dateIdeas.length;
+    const currentMod = ((rouletteRotation % 360) + 360) % 360;
+    const targetMod = (360 - nextIndex * segmentAngle) % 360;
+    const finalRotation = rouletteRotation + 360 * 5 + ((targetMod - currentMod + 360) % 360);
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (rouletteTimer.current) window.clearTimeout(rouletteTimer.current);
+    setRouletteHasResult(false);
+    setRouletteSpinning(true);
+    setRouletteIndex(nextIndex);
+    setRouletteRotation(finalRotation);
+    rouletteTimer.current = window.setTimeout(() => {
+      setRouletteSpinning(false);
+      setRouletteHasResult(true);
+      rouletteTimer.current = null;
+    }, reducedMotion ? 80 : 2700);
+  }
+
+  function useRouletteIdea() {
+    const now = new Date();
+    setRouletteSuggestion(dateIdeas[rouletteIndex]);
+    setCalendarMonth({ year: now.getFullYear(), month: now.getMonth() });
+    setSelectedDate("");
+    setDateError("");
+    setDateStep("calendar");
+  }
+
   function changeCalendarMonth(offset: number) {
     setCalendarPreviewDate(null);
     setDateError("");
@@ -1452,9 +1562,26 @@ export default function MemoryExperience() {
             <section className={`os-window date-window${maximized.date ? " is-maximized" : ""}`} style={windowStyle("date")} onPointerDown={() => front("date")} aria-label="Escolher uma data para nosso encontro">
               <WindowBar title="NOSSO_ENCONTRO.CAL" onClose={() => close("date")} maximized={maximized.date} onToggleMaximize={() => toggleMaximize("date")} onDragStart={(event) => startDrag("date", event)} onDragMove={dragWindow} onDragEnd={endDrag} onNudge={(x, y, bar) => nudgeWindow("date", x, y, bar)} />
               <div className="date-planner">
+                {(dateStep === "calendar" || dateStep === "roulette") && (
+                  <nav className="date-view-switch" aria-label="Escolher entre calendário e roleta de encontros">
+                    <button type="button" aria-pressed={dateStep === "calendar"} onClick={() => { setDateError(""); setDateStep("calendar"); }}>
+                      <span aria-hidden="true">▦</span> CALENDÁRIO
+                    </button>
+                    <button type="button" aria-pressed={dateStep === "roulette"} onClick={openDateRoulette}>
+                      <span aria-hidden="true">✦</span> ROLETA DE ENCONTROS
+                    </button>
+                  </nav>
+                )}
                 {dateStep === "calendar" && (
                   <section className="calendar-step" aria-labelledby="calendar-heading">
                     <div className="date-intro"><span>NOSSO CALENDÁRIO</span><h2 id="calendar-heading">Quando nós saímos — ou vamos sair?</h2><p>Escolha uma data livre: em dias passados você registra o que já vivemos; hoje e no futuro, marca o nosso próximo encontro.</p></div>
+                    {rouletteSuggestion && (
+                      <aside className="roulette-calendar-note" aria-live="polite">
+                        <span aria-hidden="true">{rouletteSuggestion.icon}</span>
+                        <p><small>A ROLETA ESCOLHEU</small><strong>{rouletteSuggestion.title}</strong>Agora escolha uma data para esse encontro.</p>
+                        <button type="button" onClick={() => setRouletteSuggestion(null)} aria-label="Remover sugestão da roleta">×</button>
+                      </aside>
+                    )}
                     <div className="calendar-toolbar">
                       <button type="button" onClick={() => changeCalendarMonth(-1)} aria-label="Mês anterior">←</button>
                       <strong>{calendarTitle}</strong>
@@ -1527,6 +1654,50 @@ export default function MemoryExperience() {
                   </section>
                 )}
 
+                {dateStep === "roulette" && (
+                  <section className="roulette-step" aria-labelledby="roulette-heading">
+                    <div className="roulette-copy">
+                      <span>DEIXA O DESTINO ESCOLHER</span>
+                      <h2 id="roulette-heading">Qual será o nosso próximo encontro?</h2>
+                      <p>Gire a roleta e descubra uma ideia preparada para nós dois.</p>
+                    </div>
+                    <div className="roulette-stage">
+                      <span className="roulette-pointer" aria-hidden="true">♥</span>
+                      <div
+                        className={`roulette-wheel${rouletteSpinning ? " is-spinning" : ""}`}
+                        style={{ "--roulette-rotation": `${rouletteRotation}deg` } as CSSProperties}
+                        aria-hidden="true"
+                      >
+                        {dateIdeas.map((idea, index) => (
+                          <span
+                            className="roulette-idea"
+                            style={{ "--idea-angle": `${index * (360 / dateIdeas.length)}deg` } as CSSProperties}
+                            key={idea.title}
+                          >
+                            <i>{idea.icon}</i>
+                          </span>
+                        ))}
+                      </div>
+                      <button type="button" className="roulette-spin" onClick={spinDateRoulette} disabled={rouletteSpinning}>
+                        {rouletteSpinning ? "..." : "GIRAR"}<span aria-hidden="true">♡</span>
+                      </button>
+                    </div>
+                    <div className={`roulette-result${rouletteHasResult ? " has-result" : ""}`} aria-live="polite" aria-atomic="true">
+                      {rouletteSpinning ? (
+                        <p>A roleta está escolhendo um encontro bonito para vocês...</p>
+                      ) : rouletteHasResult ? (
+                        <><span>{dateIdeas[rouletteIndex].icon}</span><div><small>A ROLETA ESCOLHEU</small><h3>{dateIdeas[rouletteIndex].title}</h3><p>{dateIdeas[rouletteIndex].description}</p></div></>
+                      ) : (
+                        <p>Clique em <strong>GIRAR</strong> e deixe o acaso preparar o próximo capítulo.</p>
+                      )}
+                    </div>
+                    <div className="roulette-actions">
+                      <button type="button" className="secondary" onClick={spinDateRoulette} disabled={rouletteSpinning}>{rouletteHasResult ? "GIRAR DE NOVO" : "SORTEAR UMA IDEIA"}</button>
+                      {rouletteHasResult && <button type="button" onClick={useRouletteIdea}>ESCOLHER UMA DATA ♡</button>}
+                    </div>
+                  </section>
+                )}
+
                 {dateStep === "confirm" && (
                   <section className="date-confirm" aria-labelledby="date-confirm-title">
                     <span className="date-heart" aria-hidden="true">♡</span>
@@ -1545,10 +1716,11 @@ export default function MemoryExperience() {
                     <input type="hidden" name="_next" value={`${siteUrl}#encontro-enviado`} />
                     <input type="hidden" name="Data escolhida" value={selectedDateLabel} />
                     <input type="hidden" name="Data ISO" value={selectedDate} />
+                    <input type="hidden" name="Ideia sorteada" value={isPastLocalDate(selectedDate) ? "" : rouletteSuggestion?.title ?? ""} />
                     <header><span>{isPastLocalDate(selectedDate) ? "ENCONTRO VIVIDO" : "ENCONTRO ESCOLHIDO"}</span><h2>{selectedDateLabel}</h2><button type="button" onClick={() => returnToCalendar(selectedDate)}>TROCAR DATA</button></header>
-                    <label htmlFor="outing-type">{isPastLocalDate(selectedDate) ? "QUE TIPO DE ENCONTRO FOI?" : "ONDE VOCÊ QUER IR?"}<select id="outing-type" name="Tipo de passeio" defaultValue="" required disabled={dateSaving}><option value="" disabled>{isPastLocalDate(selectedDate) ? "Escolha o que fizemos..." : "Escolha uma ideia..."}</option><option>Restaurante</option><option>Cinema</option><option>Parque ou praia</option><option>Café ou confeitaria</option><option>Passeio surpresa</option><option>Outro lugar</option></select></label>
-                    <label htmlFor="outing-place">{isPastLocalDate(selectedDate) ? "ONDE NÓS FOMOS?" : "QUAL É O LOCAL?"}<input id="outing-place" name="Local desejado" minLength={2} maxLength={120} placeholder="Ex.: o nome do restaurante ou lugar" required disabled={dateSaving} /></label>
-                    <label className="date-description" htmlFor="outing-description">{isPastLocalDate(selectedDate) ? "CONTE O QUE ACONTECEU" : "DESCREVA O LOCAL E O QUE VOCÊ IMAGINOU"}<textarea id="outing-description" name="Descrição do local" minLength={3} maxLength={1000} placeholder={isPastLocalDate(selectedDate) ? "Conte o que fizemos e o que tornou esse dia especial..." : "Conte onde fica, o que gostaria de fazer e qualquer detalhe importante..."} required disabled={dateSaving} /></label>
+                    <label htmlFor="outing-type">{isPastLocalDate(selectedDate) ? "QUE TIPO DE ENCONTRO FOI?" : "ONDE VOCÊ QUER IR?"}<select id="outing-type" name="Tipo de passeio" defaultValue={isPastLocalDate(selectedDate) ? "" : rouletteSuggestion?.outing ?? ""} required disabled={dateSaving}><option value="" disabled>{isPastLocalDate(selectedDate) ? "Escolha o que fizemos..." : "Escolha uma ideia..."}</option><option>Restaurante</option><option>Cinema</option><option>Parque ou praia</option><option>Café ou confeitaria</option><option>Passeio surpresa</option><option>Outro lugar</option></select></label>
+                    <label htmlFor="outing-place">{isPastLocalDate(selectedDate) ? "ONDE NÓS FOMOS?" : "QUAL É O LOCAL?"}<input id="outing-place" name="Local desejado" minLength={2} maxLength={120} defaultValue={isPastLocalDate(selectedDate) ? "" : rouletteSuggestion?.place ?? ""} placeholder="Ex.: o nome do restaurante ou lugar" required disabled={dateSaving} /></label>
+                    <label className="date-description" htmlFor="outing-description">{isPastLocalDate(selectedDate) ? "CONTE O QUE ACONTECEU" : "DESCREVA O LOCAL E O QUE VOCÊ IMAGINOU"}<textarea id="outing-description" name="Descrição do local" minLength={3} maxLength={1000} defaultValue={isPastLocalDate(selectedDate) ? "" : rouletteSuggestion?.description ?? ""} placeholder={isPastLocalDate(selectedDate) ? "Conte o que fizemos e o que tornou esse dia especial..." : "Conte onde fica, o que gostaria de fazer e qualquer detalhe importante..."} required disabled={dateSaving} /></label>
                     {dateError && <p className="date-error" role="alert">{dateError}</p>}
                     <button type="submit" className="date-submit" disabled={dateSaving}>{dateSaving ? "ENVIANDO..." : isPastLocalDate(selectedDate) ? "GUARDAR ESTA LEMBRANÇA ♡" : "ENVIAR NOSSO ENCONTRO PARA O VICTOR ♡"}</button>
                   </form>

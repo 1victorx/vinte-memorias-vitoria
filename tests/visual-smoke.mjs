@@ -219,6 +219,16 @@ for (const size of sizes) {
   await page.locator(".desktop-dock").getByRole("button", { name: "Encontro", exact: true }).click();
   const dateWindow = page.locator(".date-window");
   await dateWindow.waitFor();
+  if (size.name === "desktop-1366") {
+    await dateWindow.getByRole("button", { name: /roleta de encontros/i }).click();
+    await dateWindow.locator(".roulette-step").waitFor();
+    await dateWindow.getByRole("button", { name: "GIRAR", exact: true }).click();
+    await dateWindow.locator(".roulette-result.has-result").waitFor();
+    assert.match(await dateWindow.locator(".roulette-result").textContent(), /a roleta escolheu/i, `${size.name}: roleta não apresentou o resultado`);
+    await dateWindow.getByRole("button", { name: /escolher uma data/i }).click();
+    await dateWindow.locator(".calendar-grid").waitFor();
+    assert.match(await dateWindow.locator(".roulette-calendar-note").textContent(), /agora escolha uma data/i, `${size.name}: ideia sorteada não foi levada ao calendário`);
+  }
   assert.equal(await dateWindow.locator(".calendar-day").count(), 31, `${size.name}: agosto precisa exibir todos os 31 dias`);
   const browserToday = await page.evaluate(() => {
     const now = new Date();

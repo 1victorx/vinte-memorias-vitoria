@@ -149,6 +149,10 @@ test("inclui a fotografia fornecida e as regras locais do calendário", async ()
     new URL("../app/lib/local-date.ts", import.meta.url),
     "utf8",
   );
+  const memoriesData = await readFile(
+    new URL("../app/data/memories.ts", import.meta.url),
+    "utf8",
+  );
   const flower = await stat(
     new URL("../public/media/photos/welcome-flowers.webp", import.meta.url),
   );
@@ -159,6 +163,11 @@ test("inclui a fotografia fornecida e as regras locais do calendário", async ()
   assert.doesNotMatch(component, /disabled=\{isDisabled\}/);
   assert.match(component, /dateSavingRef\.current/);
   assert.match(component, /encontros-agendados-vitoria/);
+  assert.match(component, /ROLETA DE ENCONTROS/);
+  assert.match(component, /spinDateRoulette/);
+  assert.match(component, /Piquenique ao pôr do sol/);
+  assert.match(component, /ESCOLHER UMA DATA/);
+  assert.doesNotMatch(memoriesData, /memory-09-02\.jpg/);
   assert.match(component, /desktop-quick-player/);
   assert.match(component, /quick-player-drag-handle/);
   assert.match(component, /thumbnailAsset/);
