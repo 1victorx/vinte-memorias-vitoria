@@ -3009,3 +3009,17 @@ body * {
 @media (prefers-reduced-motion: reduce) {
   .gsap-romantic-background [class*="gsap-"] { transform: none !important; }
 }
+/* Selo do casal centralizado na área de trabalho */
+.desktop-stamp {
+  top: 50%;
+  left: 50%;
+  transform: translate3d(
+    calc(-50% + var(--mouse-shift-x-reverse)),
+    calc(-50% + var(--mouse-shift-y-reverse)),
+    0
+  ) rotate(-8deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desktop-stamp { transform: translate(-50%, -50%) rotate(-8deg) !important; }
+}

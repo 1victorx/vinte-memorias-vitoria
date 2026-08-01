@@ -87,6 +87,10 @@ for (const size of sizes) {
   assert.equal(await gsapBackground.locator(".gsap-heart").count(), 8, `${size.name}: corações animados do fundo estão ausentes`);
   const gsapBackdrop = await gsapBackground.evaluate((element) => getComputedStyle(element).backgroundImage);
   assert.notEqual(gsapBackdrop, "none", `${size.name}: fundo GSAP não possui contraste visual de apoio`);
+  const stampBounds = await page.locator(".desktop-stamp").boundingBox();
+  const wallpaperBounds = await page.locator(".wallpaper").boundingBox();
+  assert.ok(stampBounds && wallpaperBounds && Math.abs(stampBounds.x + stampBounds.width / 2 - (wallpaperBounds.x + wallpaperBounds.width / 2)) <= 2, `${size.name}: selo V + V não está centralizado horizontalmente`);
+  assert.ok(stampBounds && wallpaperBounds && Math.abs(stampBounds.y + stampBounds.height / 2 - (wallpaperBounds.y + wallpaperBounds.height / 2)) <= 2, `${size.name}: selo V + V não está centralizado verticalmente`);
   const quickPlayerBounds = await quickPlayer.boundingBox();
   const dockBounds = await page.locator(".desktop-dock").boundingBox();
   const progressBounds = await quickPlayer.locator(".quick-player-progress").boundingBox();
