@@ -1251,16 +1251,20 @@ export default function MemoryExperience() {
               <button type="button" onClick={() => moveQuickPlayerSong(1)} aria-label="Próxima música">›</button>
             </div>
             <div className="quick-player-progress">
+              <span>{formatTime(currentTime)}</span>
               <input type="range" min="0" max="100" value={progress} onChange={(event) => seek(Number(event.target.value))} aria-label="Posição da música no tocador rápido" />
+              <span>{formatTime(duration)}</span>
             </div>
             <div className="quick-player-options">
               <button type="button" className="quick-volume-button" onClick={toggleMute} aria-label={volume > 0 ? "Silenciar música" : "Ativar som"} title={volume > 0 ? "Silenciar" : "Ativar som"}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zm11.4.6a4 4 0 0 1 0 4.8M17.8 7a7 7 0 0 1 0 10" /></svg>
               </button>
+              <span className="quick-volume-label">VOLUME</span>
               <input type="range" min="0" max="1" step="0.01" value={volume} onChange={(event) => setVolume(Number(event.target.value))} aria-label="Volume do tocador rápido" />
               <output aria-live="polite">{Math.round(volume * 100)}%</output>
               <button type="button" className={`quick-shuffle-button${shuffleEnabled ? " is-active" : ""}`} onClick={() => setShuffleEnabled((current) => !current)} aria-label={shuffleEnabled ? "Desativar músicas aleatórias" : "Ativar músicas aleatórias"} aria-pressed={shuffleEnabled} title="Modo aleatório">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3.2c4.5 0 5 10 9.8 10h3m-3-3 3 3-3 3M4 17h3.2c1.8 0 3-1.6 4-3.5M14 7.8A4.7 4.7 0 0 1 17 7h3m-3-3 3 3-3 3" /></svg>
+                <span>{shuffleEnabled ? "ALEATÓRIO: ON" : "ALEATÓRIO"}</span>
               </button>
             </div>
           </aside>

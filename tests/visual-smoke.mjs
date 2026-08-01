@@ -82,6 +82,14 @@ for (const size of sizes) {
   await threeCanvas.waitFor();
   const threeBounds = await threeCanvas.boundingBox();
   assert.ok(threeBounds && threeBounds.width >= size.width && threeBounds.height >= size.height - 30, `${size.name}: fundo Three.js não cobre a área de trabalho`);
+  const threeBackdrop = await page.locator(".three-romantic-background").evaluate((element) => getComputedStyle(element).backgroundImage);
+  assert.notEqual(threeBackdrop, "none", `${size.name}: fundo romântico não possui composição visual de apoio`);
+  const quickPlayerBounds = await quickPlayer.boundingBox();
+  const dockBounds = await page.locator(".desktop-dock").boundingBox();
+  const progressBounds = await quickPlayer.locator(".quick-player-progress").boundingBox();
+  const optionsBounds = await quickPlayer.locator(".quick-player-options").boundingBox();
+  assert.ok(quickPlayerBounds && dockBounds && quickPlayerBounds.y + quickPlayerBounds.height < dockBounds.y, `${size.name}: player rápido está sobreposto ao dock`);
+  assert.ok(progressBounds && optionsBounds && progressBounds.y + progressBounds.height < optionsBounds.y, `${size.name}: progresso e volume estão sobrepostos`);
   const quickVolume = quickPlayer.getByRole("slider", { name: /volume do tocador rápido/i });
   assert.equal(await quickVolume.inputValue(), "0.72", `${size.name}: volume inicial do tocador rápido está incorreto`);
   await quickPlayer.getByRole("button", { name: /silenciar música/i }).click();

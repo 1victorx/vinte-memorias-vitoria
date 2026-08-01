@@ -2819,3 +2819,99 @@ body * {
   height: min(610px, calc(100vh - 132px));
   min-height: 350px;
 }
+/* Correção visual: fundo Three.js legível e player sem sobreposição */
+.three-romantic-background {
+  opacity: 1;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(153, 45, 91, .15), transparent 23%),
+    radial-gradient(circle at 88% 72%, rgba(112, 64, 143, .13), transparent 26%),
+    radial-gradient(circle at 70% 12%, rgba(255, 248, 222, .38), transparent 21%);
+}
+.three-romantic-canvas {
+  opacity: .96;
+  mix-blend-mode: multiply;
+  filter: saturate(1.18) contrast(1.1);
+}
+
+.desktop-quick-player {
+  z-index: 11;
+  right: 16px;
+  bottom: 90px;
+  width: 372px;
+  height: 148px;
+  grid-template-columns: 58px minmax(0, 1fr) 84px;
+  gap: 9px;
+  padding: 27px 10px 72px;
+}
+.quick-player-track { height: 50px; }
+.quick-player-controls { gap: 5px; }
+.quick-player-controls button {
+  width: 25px;
+  height: 32px;
+}
+.quick-player-progress {
+  right: 10px;
+  bottom: 44px;
+  left: 10px;
+  display: grid;
+  height: 19px;
+  grid-template-columns: 35px minmax(0, 1fr) 35px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 5px;
+  border-top: 1px dotted rgba(111, 69, 89, .36);
+  border-bottom: 1px dotted rgba(111, 69, 89, .28);
+  background: rgba(255, 249, 251, .72);
+}
+.quick-player-progress span {
+  color: #704357;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.quick-player-progress input {
+  display: block;
+  height: 13px;
+}
+.quick-player-options {
+  right: 10px;
+  bottom: 8px;
+  left: 10px;
+  height: 28px;
+  grid-template-columns: 29px 48px minmax(72px, 1fr) 35px 112px;
+  gap: 6px;
+}
+.quick-player-options > button {
+  width: 29px;
+  height: 27px;
+}
+.quick-volume-label {
+  color: #6b304c;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+.quick-player-options output {
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+.quick-player-options .quick-shuffle-button {
+  display: flex;
+  width: 112px;
+  height: 27px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 7px;
+  white-space: nowrap;
+}
+.quick-shuffle-button span {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .025em;
+}
+.quick-shuffle-button.is-active span { color: inherit; }
+
+@media (prefers-reduced-motion: reduce) {
+  .three-romantic-canvas { opacity: .88; }
+}

@@ -62,24 +62,35 @@ export default function ThreeRomanticBackground({ active }: ThreeRomanticBackgro
       heartShape.bezierCurveTo(0, 0.72, 0.3, 1.08, 0.75, 0.72);
       heartShape.bezierCurveTo(1.6, 0.05, 0.9, -0.95, 0, -0.25);
       const heartGeometry = new THREE.ShapeGeometry(heartShape, 2);
+      const heartOutlineGeometry = new THREE.BufferGeometry().setFromPoints(heartShape.getPoints(28));
 
       for (let index = 0; index < 11; index += 1) {
-        const material = new THREE.MeshBasicMaterial({
-          color: pinks[index % pinks.length],
-          transparent: true,
-          opacity: 0.07 + (index % 3) * 0.025,
-          depthWrite: false,
-          side: THREE.DoubleSide,
-        });
-        const mesh = new THREE.Mesh(heartGeometry, material);
-        const scale = 0.14 + (index % 4) * 0.055;
+        const heart = new THREE.Group();
+        const color = pinks[index % pinks.length];
+        const fill = new THREE.Mesh(
+          heartGeometry,
+          new THREE.MeshBasicMaterial({
+            color,
+            transparent: true,
+            opacity: 0.13 + (index % 3) * 0.035,
+            depthWrite: false,
+            side: THREE.DoubleSide,
+          }),
+        );
+        const outline = new THREE.LineLoop(
+          heartOutlineGeometry,
+          new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.34, depthWrite: false }),
+        );
+        outline.position.z = 0.02;
+        heart.add(fill, outline);
+        const scale = 0.24 + (index % 4) * 0.07;
         const baseX = -7.2 + ((index * 3.17) % 14.4);
         const baseY = -4.2 + ((index * 2.11) % 8.4);
-        mesh.scale.set(scale, scale, scale);
-        mesh.position.set(baseX, baseY, -1 - (index % 3));
-        mesh.rotation.z = (index % 5) * 0.28;
-        group.add(mesh);
-        floating.push({ mesh, baseX, baseY, phase: index * 0.83, speed: 0.16 + (index % 4) * 0.035, drift: 0.12 + (index % 3) * 0.05 });
+        heart.scale.set(scale, scale, scale);
+        heart.position.set(baseX, baseY, -1 - (index % 3));
+        heart.rotation.z = (index % 5) * 0.28;
+        group.add(heart);
+        floating.push({ mesh: heart, baseX, baseY, phase: index * 0.83, speed: 0.16 + (index % 4) * 0.035, drift: 0.16 + (index % 3) * 0.06 });
       }
 
       const petalGeometry = new THREE.CircleGeometry(0.2, 7);
@@ -92,7 +103,7 @@ export default function ThreeRomanticBackground({ active }: ThreeRomanticBackgro
           const material = new THREE.MeshBasicMaterial({
             color: pinks[(flowerIndex + petalIndex) % 4],
             transparent: true,
-            opacity: 0.09,
+            opacity: 0.2,
             depthWrite: false,
           });
           const petal = new THREE.Mesh(petalGeometry, material);
@@ -107,12 +118,12 @@ export default function ThreeRomanticBackground({ active }: ThreeRomanticBackgro
         );
         flower.add(center);
         flower.position.set(baseX, baseY, -2);
-        flower.scale.setScalar(0.75 + (flowerIndex % 3) * 0.2);
+        flower.scale.setScalar(0.95 + (flowerIndex % 3) * 0.24);
         group.add(flower);
         floating.push({ mesh: flower, baseX, baseY, phase: flowerIndex * 1.31, speed: 0.08, drift: 0.08 });
       }
 
-      const ringMaterial = new THREE.LineBasicMaterial({ color: 0xa93467, transparent: true, opacity: 0.08 });
+      const ringMaterial = new THREE.LineBasicMaterial({ color: 0x8f2f59, transparent: true, opacity: 0.18 });
       for (let index = 0; index < 3; index += 1) {
         const circle = new THREE.CircleGeometry(1.2 + index * 0.5, 32);
         const edges = new THREE.EdgesGeometry(circle);
@@ -124,10 +135,24 @@ export default function ThreeRomanticBackground({ active }: ThreeRomanticBackgro
       }
       ringMaterial.dispose();
 
+      const sparklePositions = new Float32Array(72 * 3);
+      for (let index = 0; index < 72; index += 1) {
+        sparklePositions[index * 3] = -8.8 + ((index * 5.37) % 17.6);
+        sparklePositions[index * 3 + 1] = -4.7 + ((index * 3.19) % 9.4);
+        sparklePositions[index * 3 + 2] = -4;
+      }
+      const sparkleGeometry = new THREE.BufferGeometry();
+      sparkleGeometry.setAttribute("position", new THREE.BufferAttribute(sparklePositions, 3));
+      const sparkles = new THREE.Points(
+        sparkleGeometry,
+        new THREE.PointsMaterial({ color: 0x9e315e, size: 2.2, sizeAttenuation: false, transparent: true, opacity: 0.3, depthWrite: false }),
+      );
+      group.add(sparkles);
+
       const pointer = { x: 0, y: 0 };
       const onPointerMove = (event: PointerEvent) => {
-        pointer.x = (event.clientX / window.innerWidth - 0.5) * 0.55;
-        pointer.y = (event.clientY / window.innerHeight - 0.5) * -0.35;
+        pointer.x = (event.clientX / window.innerWidth - 0.5) * 0.9;
+        pointer.y = (event.clientY / window.innerHeight - 0.5) * -0.6;
       };
 
       const resize = () => {
@@ -153,6 +178,7 @@ export default function ThreeRomanticBackground({ active }: ThreeRomanticBackgro
         });
         group.position.x += (pointer.x - group.position.x) * 0.018;
         group.position.y += (pointer.y - group.position.y) * 0.018;
+        sparkles.rotation.z = elapsed * 0.006;
         renderer.render(scene, camera);
         if (!reducedMotion) animationFrame = window.requestAnimationFrame(render);
       };
@@ -169,7 +195,7 @@ export default function ThreeRomanticBackground({ active }: ThreeRomanticBackgro
         const geometries = new Set<import("three").BufferGeometry>();
         const materials = new Set<import("three").Material>();
         scene.traverse((object) => {
-          if (!(object instanceof THREE.Mesh) && !(object instanceof THREE.Line)) return;
+          if (!(object instanceof THREE.Mesh) && !(object instanceof THREE.Line) && !(object instanceof THREE.Points)) return;
           geometries.add(object.geometry);
           const objectMaterials = Array.isArray(object.material) ? object.material : [object.material];
           objectMaterials.forEach((material) => materials.add(material));
