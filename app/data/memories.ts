@@ -175,7 +175,6 @@ export const memories: Memory[] = [
       "O extraordinário da nossa relação mora muito nas coisas simples. Dividir o dia, a comida, uma conversa e depois sentir saudade de tudo isso.",
     photos: [
       "/media/photos/memory-09-01.jpg",
-      "/media/photos/memory-09-02.jpg",
     ],
     song: {
       title: "Ordinary",
