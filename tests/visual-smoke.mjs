@@ -77,8 +77,7 @@ for (const size of sizes) {
   await page.screenshot({ path: fileURLToPath(new URL(`${size.name}-closed.png`, outputDir)), fullPage: false });
 
   const quickPlayer = page.locator(".desktop-quick-player");
-  await quickPlayer.waitFor();
-  assert.equal(await quickPlayer.isVisible(), true, `${size.name}: tocador rápido não está visível na tela principal`);
+  assert.equal(await quickPlayer.count(), 0, `${size.name}: tocador rápido apareceu antes de abrir Músicas`);
   const gsapBackground = page.locator(".gsap-romantic-background");
   await gsapBackground.waitFor();
   const gsapBounds = await gsapBackground.boundingBox();
@@ -92,6 +91,11 @@ for (const size of sizes) {
   const wallpaperBounds = await page.locator(".wallpaper").boundingBox();
   assert.ok(stampBounds && wallpaperBounds && Math.abs(stampBounds.x + stampBounds.width / 2 - (wallpaperBounds.x + wallpaperBounds.width / 2)) <= 2, `${size.name}: selo V + V não está centralizado horizontalmente`);
   assert.ok(stampBounds && wallpaperBounds && Math.abs(stampBounds.y + stampBounds.height / 2 - (wallpaperBounds.y + wallpaperBounds.height / 2)) <= 2, `${size.name}: selo V + V não está centralizado verticalmente`);
+  const musicDockButton = page.locator(".desktop-dock").getByRole("button", { name: "Músicas", exact: true });
+  await musicDockButton.click();
+  await page.locator(".music-window").waitFor();
+  await quickPlayer.waitFor();
+  assert.equal(await quickPlayer.isVisible(), true, `${size.name}: player não apareceu junto com a janela de CDs`);
   const quickPlayerBounds = await quickPlayer.boundingBox();
   const dockBounds = await page.locator(".desktop-dock").boundingBox();
   const progressBounds = await quickPlayer.locator(".quick-player-progress").boundingBox();
@@ -108,7 +112,7 @@ for (const size of sizes) {
   assert.equal(await page.getByRole("button", { name: "Carta", exact: true }).count(), 0, `${size.name}: a carta ainda aparece na navegação`);
   await quickPlayer.getByRole("button", { name: /próxima música/i }).click();
   await page.waitForFunction(() => document.querySelector("audio")?.getAttribute("src")?.includes("memory-02.mp3"));
-  assert.equal(await page.locator(".music-window").count(), 0, `${size.name}: o tocador rápido abriu a janela de músicas sem pedido`);
+  assert.equal(await page.locator(".music-window").count(), 1, `${size.name}: player deixou de acompanhar a janela de músicas`);
   await quickPlayer.getByRole("button", { name: /música anterior/i }).click();
   const shuffleButton = quickPlayer.getByRole("button", { name: /ativar músicas aleatórias/i });
   await shuffleButton.click();
@@ -132,12 +136,19 @@ for (const size of sizes) {
   const quickPlayerAfterDrag = await quickPlayer.boundingBox();
   assert.ok(quickPlayerAfterDrag && quickPlayerAfterDrag.x <= quickPlayerBeforeDrag.x - 60 && quickPlayerAfterDrag.y <= quickPlayerBeforeDrag.y - 35, `${size.name}: player rápido não se move livremente`);
   await quickPlayerHandle.dblclick();
+  await musicDockButton.click();
+  await page.locator(".music-window").waitFor({ state: "detached" });
+  await quickPlayer.waitFor({ state: "detached" });
 
   const ourSongButton = page.locator(".desktop-dock").getByRole("button", { name: "Nossa música", exact: true });
   await ourSongButton.click();
   await page.waitForFunction(() => document.querySelector("audio")?.getAttribute("src")?.includes("memory-05.mp3"));
   assert.equal(await page.locator(".music-window").count(), 0, `${size.name}: Nossa música abriu a lista de CDs`);
+  assert.equal(await quickPlayer.count(), 0, `${size.name}: Nossa música exibiu o player fora da aba Músicas`);
+  await musicDockButton.click();
   await quickPlayer.locator(".quick-player-disc.is-spinning").waitFor();
+  await musicDockButton.click();
+  await quickPlayer.waitFor({ state: "detached" });
 
   const responderButton = page.locator(".desktop-dock").getByRole("button", { name: "Responder", exact: true });
   await responderButton.hover();
@@ -158,10 +169,12 @@ for (const size of sizes) {
     const appWindow = page.locator(selector);
     await appWindow.waitFor();
     assert.equal(await dockButton.getAttribute("aria-pressed"), "true", `${size.name}: ${label} não indicou que a janela foi aberta`);
+    if (label === "Músicas") assert.equal(await quickPlayer.count(), 1, `${size.name}: player não abriu com Músicas`);
     await dockButton.focus();
     await page.keyboard.press("Enter");
     await appWindow.waitFor({ state: "detached" });
     assert.equal(await dockButton.getAttribute("aria-pressed"), "false", `${size.name}: ${label} não indicou que a janela foi fechada`);
+    if (label === "Músicas") assert.equal(await quickPlayer.count(), 0, `${size.name}: player permaneceu após fechar Músicas`);
   }
   assert.equal(await page.locator(".os-window").count(), 0, `${size.name}: uma janela permaneceu aberta após o fechamento`);
 

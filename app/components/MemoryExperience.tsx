@@ -1420,7 +1420,7 @@ export default function MemoryExperience() {
           <GsapRomanticBackground active={!welcomeVisible} />
           <div className="desktop-stamp" aria-hidden="true"><span>V + V</span><small>DESDE 2025</small></div>
 
-          <aside
+          {visible.music && <aside
             ref={quickPlayerRef}
             className="desktop-quick-player"
             style={quickPlayerPosition ? { position: "fixed", left: quickPlayerPosition.x, top: quickPlayerPosition.y, right: "auto", bottom: "auto" } : undefined}
@@ -1479,7 +1479,7 @@ export default function MemoryExperience() {
                 <span>{shuffleEnabled ? "ALEATÓRIO: ON" : "ALEATÓRIO"}</span>
               </button>
             </div>
-          </aside>
+          </aside>}
 
           {visible.music && (
             <section className={`os-window music-window${maximized.music ? " is-maximized" : ""}`} style={windowStyle("music")} onPointerDown={() => front("music")} aria-label="Seletor de músicas">
