@@ -16,7 +16,7 @@ romântica inspirada em interfaces antigas, e é publicado gratuitamente pelo Gi
 - Visual soft-retro legível em zoom de 100%, com fonte serifada em toda a interface, cantos moderados, detalhes florais e textura pixelada.
 - 45 fotografias exibidas cronologicamente; a última duplicata da primeira memória foi retirada da galeria.
 - 20 músicas otimizadas para carregamento pela internet.
-- Tocador rápido no canto inferior direito exibido somente junto da janela Músicas, mantendo a área de trabalho inicial limpa e permitindo escolher livremente qualquer uma das 20 faixas.
+- Tocador rápido no canto inferior direito: começa oculto, aparece ao abrir Músicas e depois funciona de forma independente da janela de CDs, com botão próprio para fechar.
 - CDs personalizados com fotografias reais de cada memória e um CD grande giratório no tocador.
 - Botão especial para a música **No Escuro**.
 - Mensagem escondida em cada memória.

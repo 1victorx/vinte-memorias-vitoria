@@ -138,6 +138,8 @@ for (const size of sizes) {
   await quickPlayerHandle.dblclick();
   await musicDockButton.click();
   await page.locator(".music-window").waitFor({ state: "detached" });
+  assert.equal(await quickPlayer.count(), 1, `${size.name}: fechar os CDs também fechou o player independente`);
+  await quickPlayer.getByRole("button", { name: /fechar tocador rápido/i }).click();
   await quickPlayer.waitFor({ state: "detached" });
 
   const ourSongButton = page.locator(".desktop-dock").getByRole("button", { name: "Nossa música", exact: true });
@@ -146,8 +148,13 @@ for (const size of sizes) {
   assert.equal(await page.locator(".music-window").count(), 0, `${size.name}: Nossa música abriu a lista de CDs`);
   assert.equal(await quickPlayer.count(), 0, `${size.name}: Nossa música exibiu o player fora da aba Músicas`);
   await musicDockButton.click();
+  const songWindow = page.locator(".music-window");
+  await songWindow.waitFor();
   await quickPlayer.locator(".quick-player-disc.is-spinning").waitFor();
-  await musicDockButton.click();
+  await songWindow.getByRole("button", { name: /fechar mixtapes/i }).click();
+  await songWindow.waitFor({ state: "detached" });
+  assert.equal(await quickPlayer.count(), 1, `${size.name}: o X da janela de CDs também fechou o player`);
+  await quickPlayer.getByRole("button", { name: /fechar tocador rápido/i }).click();
   await quickPlayer.waitFor({ state: "detached" });
 
   const responderButton = page.locator(".desktop-dock").getByRole("button", { name: "Responder", exact: true });
@@ -174,7 +181,11 @@ for (const size of sizes) {
     await page.keyboard.press("Enter");
     await appWindow.waitFor({ state: "detached" });
     assert.equal(await dockButton.getAttribute("aria-pressed"), "false", `${size.name}: ${label} não indicou que a janela foi fechada`);
-    if (label === "Músicas") assert.equal(await quickPlayer.count(), 0, `${size.name}: player permaneceu após fechar Músicas`);
+    if (label === "Músicas") {
+      assert.equal(await quickPlayer.count(), 1, `${size.name}: player não permaneceu independente após fechar Músicas`);
+      await quickPlayer.getByRole("button", { name: /fechar tocador rápido/i }).click();
+      await quickPlayer.waitFor({ state: "detached" });
+    }
   }
   assert.equal(await page.locator(".os-window").count(), 0, `${size.name}: uma janela permaneceu aberta após o fechamento`);
 

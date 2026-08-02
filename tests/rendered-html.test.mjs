@@ -173,7 +173,9 @@ test("inclui a fotografia fornecida e as regras locais do calendário", async ()
   assert.match(component, /reducedMotion \? 80 : 4700/);
   assert.doesNotMatch(memoriesData, /memory-09-02\.jpg/);
   assert.match(component, /desktop-quick-player/);
-  assert.match(component, /\{visible\.music && <aside[\s\S]*desktop-quick-player/);
+  assert.match(component, /\{quickPlayerVisible && <aside[\s\S]*desktop-quick-player/);
+  assert.match(component, /quick-player-close/);
+  assert.match(component, /toggleMusicWindow/);
   assert.match(component, /quick-player-drag-handle/);
   assert.match(component, /thumbnailAsset/);
   assert.match(component, /loadLivingMemories/);

@@ -329,6 +329,7 @@ export default function MemoryExperience() {
   const [calendarMonth, setCalendarMonth] = useState({ year: 2026, month: 7 });
   const [clock, setClock] = useState("--:--");
   const [quickPlayerPosition, setQuickPlayerPosition] = useState<Point | null>(null);
+  const [quickPlayerVisible, setQuickPlayerVisible] = useState(false);
   const [livingMemories, setLivingMemories] = useState<LivingMemoryRecord[]>([]);
   const [livingStatus, setLivingStatus] = useState<LivingMemoryStatus>(
     livingMemoriesConfigured ? "loading" : "unconfigured",
@@ -966,6 +967,15 @@ export default function MemoryExperience() {
     show(name);
   }
 
+  function toggleMusicWindow() {
+    if (visible.music) {
+      close("music");
+      return;
+    }
+    setQuickPlayerVisible(true);
+    show("music");
+  }
+
   function toggleDateWindow() {
     if (visible.date) {
       close("date");
@@ -1420,12 +1430,13 @@ export default function MemoryExperience() {
           <GsapRomanticBackground active={!welcomeVisible} />
           <div className="desktop-stamp" aria-hidden="true"><span>V + V</span><small>DESDE 2025</small></div>
 
-          {visible.music && <aside
+          {quickPlayerVisible && <aside
             ref={quickPlayerRef}
             className="desktop-quick-player"
             style={quickPlayerPosition ? { position: "fixed", left: quickPlayerPosition.x, top: quickPlayerPosition.y, right: "auto", bottom: "auto" } : undefined}
             aria-label="Tocador rápido de músicas"
           >
+            <button type="button" className="quick-player-close" onClick={() => setQuickPlayerVisible(false)} aria-label="Fechar tocador rápido" title="Fechar player">×</button>
             <button
               type="button"
               className="quick-player-drag-handle"
@@ -1864,7 +1875,7 @@ export default function MemoryExperience() {
         </section>
 
         <nav className="desktop-dock" aria-label="Aplicativos do presente">
-          <button type="button" aria-pressed={visible.music} onClick={() => toggleWindow("music")}><span aria-hidden="true">♫</span><strong>Músicas</strong></button>
+          <button type="button" aria-pressed={visible.music} onClick={toggleMusicWindow}><span aria-hidden="true">♫</span><strong>Músicas</strong></button>
           <button type="button" aria-pressed={visible.memory} onClick={() => toggleWindow("memory")}><span aria-hidden="true">▧</span><strong>Memória</strong></button>
           <button type="button" aria-pressed={visible.archive} onClick={() => toggleWindow("archive")}><span aria-hidden="true">▦</span><strong>Arquivo</strong></button>
           <button type="button" className="dock-heart" onClick={() => chooseSongFromQuickPlayer(4)}><span aria-hidden="true">♡</span><strong>Nossa música</strong></button>

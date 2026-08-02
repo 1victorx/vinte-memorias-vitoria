@@ -2384,6 +2384,30 @@ body * {
     11px 15px 0 rgba(169,52,103,.11),
     0 28px 52px rgba(69,29,49,.32);
 }
+.quick-player-close {
+  position: absolute;
+  z-index: 41;
+  top: 2px;
+  left: 7px;
+  display: grid;
+  width: 20px;
+  height: 17px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(111,69,89,.55);
+  border-radius: 5px 2px 5px 2px;
+  background: #fff8fa;
+  color: #762d4d;
+  cursor: pointer;
+  font: 700 13px/1 Georgia, serif;
+}
+.quick-player-close:hover,
+.quick-player-close:focus-visible {
+  background: #efacc1;
+  color: #54152f;
+  outline: 2px solid rgba(84,21,47,.25);
+  outline-offset: 1px;
+}
 .quick-player-drag-handle {
   position: absolute;
   z-index: 40;
