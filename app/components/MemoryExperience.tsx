@@ -1445,7 +1445,6 @@ export default function MemoryExperience() {
               <div className="welcome-copy" ref={welcomeCopyRef}>
                 <span className="welcome-kicker">UM PRESENTE FEITO SÓ PARA VOCÊ</span>
                 <h1>Você está pronta para ver o seu presente?</h1>
-                <p>Tem mar, flores, música e vinte pedacinhos da nossa história esperando por você.</p>
               </div>
               <p className="welcome-message" aria-live="polite">{welcomeMessage}</p>
               <button ref={yesButtonRef} type="button" className="welcome-yes" onClick={enterGift}>Sim</button>
