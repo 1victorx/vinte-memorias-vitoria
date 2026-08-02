@@ -188,6 +188,10 @@ test("inclui a fotografia fornecida e as regras locais do calendário", async ()
   assert.doesNotMatch(component, /VITÓRIA OS/);
   assert.match(component, /mouse-ambience/);
   assert.match(component, /cursor-petal/);
+  assert.match(component, /const AudioProgress = memo/);
+  assert.doesNotMatch(component, /onTimeUpdate=\{\(event\) => setCurrentTime/);
+  assert.match(component, /is-dragging/);
+  assert.match(component, /translate3d\(\$\{point\.x - drag\.rect\.left\}/);
   assert.match(component, /kind: isPastLocalDate\(selectedDate\) \? "lived" : "planned"/);
   assert.doesNotMatch(component, /CARTA_FINAL|show\("letter"\)|visible\.letter/);
   assert.doesNotMatch(component, /memory-01-05\.jpg/);

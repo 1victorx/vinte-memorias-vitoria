@@ -7,6 +7,8 @@ import {
   PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
+  memo,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -32,6 +34,8 @@ type DragState = {
   originX: number;
   originY: number;
   rect: DOMRect;
+  element: HTMLElement;
+  point: Point;
 };
 type QuickPlayerDragState = {
   pointerId: number;
@@ -227,6 +231,67 @@ function formatTime(seconds: number) {
   return `${Math.floor(seconds / 60)}:${Math.floor(seconds % 60).toString().padStart(2, "0")}`;
 }
 
+const AudioProgress = memo(function AudioProgress({
+  audioRef,
+  className,
+  label,
+  trackKey,
+}: {
+  audioRef: { current: HTMLAudioElement | null };
+  className: string;
+  label: string;
+  trackKey: string;
+}) {
+  const [timing, setTiming] = useState({ currentTime: 0, duration: 0 });
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const updateTiming = () => {
+      const nextDuration = Number.isFinite(audio.duration) ? audio.duration : 0;
+      const nextCurrentTime = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+      setTiming((current) => (
+        current.currentTime === nextCurrentTime && current.duration === nextDuration
+          ? current
+          : { currentTime: nextCurrentTime, duration: nextDuration }
+      ));
+    };
+    const resetTiming = () => setTiming({ currentTime: 0, duration: 0 });
+
+    updateTiming();
+    audio.addEventListener("timeupdate", updateTiming);
+    audio.addEventListener("durationchange", updateTiming);
+    audio.addEventListener("loadedmetadata", updateTiming);
+    audio.addEventListener("emptied", resetTiming);
+    return () => {
+      audio.removeEventListener("timeupdate", updateTiming);
+      audio.removeEventListener("durationchange", updateTiming);
+      audio.removeEventListener("loadedmetadata", updateTiming);
+      audio.removeEventListener("emptied", resetTiming);
+    };
+  }, [audioRef, trackKey]);
+
+  const progress = timing.duration ? (timing.currentTime / timing.duration) * 100 : 0;
+  return (
+    <div className={className}>
+      <span>{formatTime(timing.currentTime)}</span>
+      <input
+        type="range"
+        min="0"
+        max="100"
+        value={progress}
+        onChange={(event) => {
+          const audio = audioRef.current;
+          if (audio && timing.duration) audio.currentTime = (Number(event.target.value) / 100) * timing.duration;
+        }}
+        aria-label={label}
+      />
+      <span>{formatTime(timing.duration)}</span>
+    </div>
+  );
+});
+
 function WindowBar({
   title,
   onClose,
@@ -303,8 +368,6 @@ export default function MemoryExperience() {
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [selectedSongIndex, setSelectedSongIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.72);
   const [shuffleEnabled, setShuffleEnabled] = useState(false);
   const [secretOpen, setSecretOpen] = useState(false);
@@ -384,7 +447,7 @@ export default function MemoryExperience() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const autoplay = useRef(false);
   const lastAudibleVolume = useRef(0.72);
-  const onlineDisplayMemories: DisplayMemory[] = livingMemories.map((memory, index) => ({
+  const onlineDisplayMemories: DisplayMemory[] = useMemo(() => livingMemories.map((memory, index) => ({
     key: "living-" + memory.id,
     number: memories.length + index + 1,
     date: formatLivingMemoryDate(memory.memory_date),
@@ -398,8 +461,8 @@ export default function MemoryExperience() {
     secret: memory.secret,
     songIndex: null,
     isLiving: true,
-  }));
-  const allMemories: DisplayMemory[] = [
+  })), [livingMemories]);
+  const allMemories: DisplayMemory[] = useMemo(() => [
     ...memories.map((memory, index) => ({
       key: "original-" + memory.id,
       number: memory.id,
@@ -413,11 +476,10 @@ export default function MemoryExperience() {
       isLiving: false,
     })),
     ...onlineDisplayMemories,
-  ];
-  const allDateIdeas = [...dateIdeas, ...customDateIdeas];
+  ], [onlineDisplayMemories]);
+  const allDateIdeas = useMemo(() => [...dateIdeas, ...customDateIdeas], [customDateIdeas]);
   const activeMemory = allMemories[Math.min(activeMemoryIndex, allMemories.length - 1)];
   const selectedSong = memories[selectedSongIndex].song;
-  const progress = duration ? (currentTime / duration) * 100 : 0;
   const daysInCalendarMonth = new Date(calendarMonth.year, calendarMonth.month + 1, 0).getDate();
   const firstCalendarWeekday = new Date(calendarMonth.year, calendarMonth.month, 1).getDay();
   const calendarTitle = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(new Date(calendarMonth.year, calendarMonth.month, 1));
@@ -632,8 +694,6 @@ export default function MemoryExperience() {
     audio.pause();
     audio.src = asset(selectedSong.file);
     audio.load();
-    setCurrentTime(0);
-    setDuration(0);
     if (autoplay.current) audio.play().catch(() => setPlaying(false));
   }, [selectedSong.file]);
 
@@ -644,8 +704,9 @@ export default function MemoryExperience() {
 
   function front(name: WindowName) {
     setLayers((current) => {
-      const nextLayer = Math.max(...Object.values(current)) + 1;
-      return { ...current, [name]: nextLayer };
+      const highestLayer = Math.max(...Object.values(current));
+      if (current[name] === highestLayer) return current;
+      return { ...current, [name]: highestLayer + 1 };
     });
   }
 
@@ -675,19 +736,21 @@ export default function MemoryExperience() {
     };
   }
 
-  function moveWindow(name: WindowName, left: number, top: number, rect: DOMRect) {
+  function clampWindowPosition(left: number, top: number, rect: DOMRect) {
     const visibleTitleWidth = Math.min(140, rect.width);
     const minLeft = visibleTitleWidth - rect.width;
     const maxLeft = window.innerWidth - visibleTitleWidth;
     const minTop = 30;
     const maxTop = window.innerHeight - 48;
-    setPositions((current) => ({
-      ...current,
-      [name]: {
-        x: Math.max(minLeft, Math.min(maxLeft, left)),
-        y: Math.max(minTop, Math.min(maxTop, top)),
-      },
-    }));
+    return {
+      x: Math.max(minLeft, Math.min(maxLeft, left)),
+      y: Math.max(minTop, Math.min(maxTop, top)),
+    };
+  }
+
+  function moveWindow(name: WindowName, left: number, top: number, rect: DOMRect) {
+    const point = clampWindowPosition(left, top, rect);
+    setPositions((current) => ({ ...current, [name]: point }));
   }
 
   function startDrag(name: WindowName, event: ReactPointerEvent<HTMLElement>) {
@@ -695,32 +758,49 @@ export default function MemoryExperience() {
     event.preventDefault();
     const windowElement = event.currentTarget.closest(".os-window");
     if (!(windowElement instanceof HTMLElement)) return;
-    front(name);
+    const rect = windowElement.getBoundingClientRect();
     dragState.current = {
       name,
       pointerId: event.pointerId,
       originX: event.clientX,
       originY: event.clientY,
-      rect: windowElement.getBoundingClientRect(),
+      rect,
+      element: windowElement,
+      point: { x: rect.left, y: rect.top },
     };
+    windowElement.classList.add("is-dragging");
+    windowElement.style.position = "fixed";
+    windowElement.style.left = `${rect.left}px`;
+    windowElement.style.top = `${rect.top}px`;
+    windowElement.style.right = "auto";
+    windowElement.style.bottom = "auto";
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
   function dragWindow(event: ReactPointerEvent<HTMLElement>) {
     const drag = dragState.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    moveWindow(
-      drag.name,
+    const point = clampWindowPosition(
       drag.rect.left + event.clientX - drag.originX,
       drag.rect.top + event.clientY - drag.originY,
       drag.rect,
     );
+    drag.point = point;
+    drag.element.style.transform = `translate3d(${point.x - drag.rect.left}px, ${point.y - drag.rect.top}px, 0)`;
   }
 
   function endDrag(event: ReactPointerEvent<HTMLElement>) {
-    if (dragState.current?.pointerId !== event.pointerId) return;
+    const drag = dragState.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
     dragState.current = null;
-    event.currentTarget.releasePointerCapture(event.pointerId);
+    drag.element.style.left = `${drag.point.x}px`;
+    drag.element.style.top = `${drag.point.y}px`;
+    drag.element.style.transform = "none";
+    drag.element.classList.remove("is-dragging");
+    setPositions((current) => ({ ...current, [drag.name]: drag.point }));
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
   }
 
   function nudgeWindow(name: WindowName, x: number, y: number, bar: HTMLElement) {
@@ -1055,10 +1135,6 @@ export default function MemoryExperience() {
 
   function toggleMute() {
     setVolume((current) => current > 0 ? 0 : Math.max(lastAudibleVolume.current, 0.35));
-  }
-
-  function seek(value: number) {
-    if (audioRef.current && duration) audioRef.current.currentTime = (value / 100) * duration;
   }
 
   function saveMessageLocally(event: FormEvent<HTMLFormElement>) {
@@ -1410,8 +1486,6 @@ export default function MemoryExperience() {
           preload="metadata"
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
-          onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
-          onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
           onEnded={finishSong}
         />
 
@@ -1473,11 +1547,7 @@ export default function MemoryExperience() {
               <button type="button" onClick={togglePlayback} aria-label={playing ? "Pausar música" : "Tocar música"}>{playing ? "Ⅱ" : "▶"}</button>
               <button type="button" onClick={() => moveQuickPlayerSong(1)} aria-label="Próxima música">›</button>
             </div>
-            <div className="quick-player-progress">
-              <span>{formatTime(currentTime)}</span>
-              <input type="range" min="0" max="100" value={progress} onChange={(event) => seek(Number(event.target.value))} aria-label="Posição da música no tocador rápido" />
-              <span>{formatTime(duration)}</span>
-            </div>
+            <AudioProgress audioRef={audioRef} className="quick-player-progress" label="Posição da música no tocador rápido" trackKey={selectedSong.file} />
             <div className="quick-player-options">
               <button type="button" className="quick-volume-button" onClick={toggleMute} aria-label={volume > 0 ? "Silenciar música" : "Ativar som"} title={volume > 0 ? "Silenciar" : "Ativar som"}>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zm11.4.6a4 4 0 0 1 0 4.8M17.8 7a7 7 0 0 1 0 10" /></svg>
@@ -1516,7 +1586,7 @@ export default function MemoryExperience() {
                     <i />
                   </span>
                 </div>
-                <div className="player-progress"><span>{formatTime(currentTime)}</span><input type="range" min="0" max="100" value={progress} onChange={(event) => seek(Number(event.target.value))} aria-label="Posição da música" /><span>{formatTime(duration)}</span></div>
+                <AudioProgress audioRef={audioRef} className="player-progress" label="Posição da música" trackKey={selectedSong.file} />
                 <div className="player-controls">
                   <button type="button" onClick={togglePlayback}>{playing ? "Ⅱ PAUSAR" : "▶ TOCAR"}</button>
                   <label>VOL <input type="range" min="0" max="1" step="0.05" value={volume} onChange={(event) => setVolume(Number(event.target.value))} aria-label="Volume" /></label>

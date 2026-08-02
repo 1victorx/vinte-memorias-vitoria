@@ -107,6 +107,7 @@ export default function GsapRomanticBackground({ active }: GsapRomanticBackgroun
       }, host);
 
       let moveLayers: ((event: PointerEvent) => void) | undefined;
+      let pointerFrame = 0;
       if (!reducedMotion) {
         const farLayer = host.querySelector<HTMLElement>(".gsap-layer--far");
         const nearLayer = host.querySelector<HTMLElement>(".gsap-layer--near");
@@ -115,14 +116,22 @@ export default function GsapRomanticBackground({ active }: GsapRomanticBackgroun
           const farY = gsap.quickTo(farLayer, "y", { duration: 1.1, ease: "power2.out" });
           const nearX = gsap.quickTo(nearLayer, "x", { duration: 0.75, ease: "power2.out" });
           const nearY = gsap.quickTo(nearLayer, "y", { duration: 0.75, ease: "power2.out" });
+          let latestX = window.innerWidth / 2;
+          let latestY = window.innerHeight / 2;
 
-          moveLayers = (event: PointerEvent) => {
-            const horizontal = event.clientX / window.innerWidth - 0.5;
-            const vertical = event.clientY / window.innerHeight - 0.5;
+          const paintLayers = () => {
+            pointerFrame = 0;
+            const horizontal = latestX / window.innerWidth - 0.5;
+            const vertical = latestY / window.innerHeight - 0.5;
             farX(horizontal * -30);
             farY(vertical * -20);
             nearX(horizontal * 44);
             nearY(vertical * 30);
+          };
+          moveLayers = (event: PointerEvent) => {
+            latestX = event.clientX;
+            latestY = event.clientY;
+            if (!pointerFrame) pointerFrame = window.requestAnimationFrame(paintLayers);
           };
           window.addEventListener("pointermove", moveLayers, { passive: true });
         }
@@ -131,6 +140,7 @@ export default function GsapRomanticBackground({ active }: GsapRomanticBackgroun
       host.dataset.motionReady = reducedMotion ? "reduced" : "true";
       cleanup = () => {
         if (moveLayers) window.removeEventListener("pointermove", moveLayers);
+        if (pointerFrame) window.cancelAnimationFrame(pointerFrame);
         context.revert();
       };
     });
