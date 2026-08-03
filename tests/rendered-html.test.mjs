@@ -145,6 +145,10 @@ test("inclui a fotografia fornecida e as regras locais do calendário", async ()
     new URL("../app/components/MemoryExperience.tsx", import.meta.url),
     "utf8",
   );
+  const globalStyles = await readFile(
+    new URL("../app/globals.css", import.meta.url),
+    "utf8",
+  );
   const dateLogic = await readFile(
     new URL("../app/lib/local-date.ts", import.meta.url),
     "utf8",
@@ -170,7 +174,9 @@ test("inclui a fotografia fornecida e as regras locais do calendário", async ()
   assert.match(component, /ideias-da-roleta-vitoria/);
   assert.match(component, /addCustomDateIdea/);
   assert.match(component, /COLOCAR NA ROLETA/);
-  assert.match(component, /reducedMotion \? 80 : 4700/);
+  assert.match(component, /\}, 4700\);/);
+  assert.doesNotMatch(component, /reducedMotion \? 80 : 4700/);
+  assert.doesNotMatch(globalStyles, /\.roulette-wheel \{ transition-duration: \.01ms; \}/);
   assert.doesNotMatch(memoriesData, /memory-09-02\.jpg/);
   assert.match(component, /desktop-quick-player/);
   assert.match(component, /\{quickPlayerVisible && <aside[\s\S]*desktop-quick-player/);

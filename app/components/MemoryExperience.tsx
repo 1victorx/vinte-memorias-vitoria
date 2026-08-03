@@ -1212,7 +1212,6 @@ export default function MemoryExperience() {
     const currentMod = ((rouletteRotation % 360) + 360) % 360;
     const targetMod = (360 - nextIndex * segmentAngle) % 360;
     const finalRotation = rouletteRotation + 360 * 8 + ((targetMod - currentMod + 360) % 360);
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     if (rouletteTimer.current) window.clearTimeout(rouletteTimer.current);
     setRouletteHasResult(false);
@@ -1223,7 +1222,7 @@ export default function MemoryExperience() {
       setRouletteSpinning(false);
       setRouletteHasResult(true);
       rouletteTimer.current = null;
-    }, reducedMotion ? 80 : 4700);
+    }, 4700);
   }
 
   function useRouletteIdea() {

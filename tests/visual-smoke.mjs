@@ -384,8 +384,11 @@ await motionDateWindow.getByRole("button", { name: /roleta de encontros/i }).cli
 const rouletteDuration = await motionDateWindow.locator(".roulette-wheel").evaluate((wheel) => getComputedStyle(wheel).transitionDuration);
 assert.equal(rouletteDuration, "4.6s", "Roleta não manteve o giro lento de suspense");
 const suspenseSpin = motionDateWindow.locator(".roulette-spin");
+const rouletteTransformBefore = await motionDateWindow.locator(".roulette-wheel").evaluate((wheel) => getComputedStyle(wheel).transform);
 await suspenseSpin.click();
 await motionPage.waitForTimeout(500);
+const rouletteTransformDuring = await motionDateWindow.locator(".roulette-wheel").evaluate((wheel) => getComputedStyle(wheel).transform);
+assert.notEqual(rouletteTransformDuring, rouletteTransformBefore, "Roleta nao se moveu visualmente durante o sorteio");
 assert.equal(await suspenseSpin.isDisabled(), true, "Roleta terminou antes do tempo de suspense");
 await motionContext.close();
 const narrowContext = await browser.newContext({ viewport: { width: 860, height: 700 } });
