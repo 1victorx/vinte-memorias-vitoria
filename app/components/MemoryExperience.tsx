@@ -1107,6 +1107,7 @@ export default function MemoryExperience() {
   function chooseSongFromQuickPlayer(index: number) {
     const normalizedIndex = (index + memories.length) % memories.length;
     autoplay.current = true;
+    setQuickPlayerVisible(true);
     if (normalizedIndex === selectedSongIndex) {
       audioRef.current?.play().catch(() => setPlaying(false));
       return;

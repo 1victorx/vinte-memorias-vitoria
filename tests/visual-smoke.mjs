@@ -146,7 +146,9 @@ for (const size of sizes) {
   await ourSongButton.click();
   await page.waitForFunction(() => document.querySelector("audio")?.getAttribute("src")?.includes("memory-05.mp3"));
   assert.equal(await page.locator(".music-window").count(), 0, `${size.name}: Nossa música abriu a lista de CDs`);
-  assert.equal(await quickPlayer.count(), 0, `${size.name}: Nossa música exibiu o player fora da aba Músicas`);
+  await quickPlayer.waitFor();
+  assert.equal(await quickPlayer.count(), 1, `${size.name}: Nossa musica nao exibiu o player lateral`);
+  await quickPlayer.locator(".quick-player-disc.is-spinning").waitFor();
   await musicDockButton.click();
   const songWindow = page.locator(".music-window");
   await songWindow.waitFor();

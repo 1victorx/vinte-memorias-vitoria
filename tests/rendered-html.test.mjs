@@ -182,6 +182,7 @@ test("inclui a fotografia fornecida e as regras locais do calendário", async ()
   assert.match(component, /\{quickPlayerVisible && <aside[\s\S]*desktop-quick-player/);
   assert.match(component, /quick-player-close/);
   assert.match(component, /toggleMusicWindow/);
+  assert.match(component, /function chooseSongFromQuickPlayer[\s\S]*setQuickPlayerVisible\(true\)/);
   assert.match(component, /quick-player-drag-handle/);
   assert.match(component, /thumbnailAsset/);
   assert.match(component, /loadLivingMemories/);
