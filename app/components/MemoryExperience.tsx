@@ -698,6 +698,21 @@ export default function MemoryExperience() {
   }, [selectedSong.file]);
 
   useEffect(() => {
+    if (!visible.memory || activeMemory.photos.length < 2) return;
+    const photoCount = activeMemory.photos.length;
+    const adjacentIndexes = [
+      (activePhotoIndex - 1 + photoCount) % photoCount,
+      (activePhotoIndex + 1) % photoCount,
+    ];
+
+    for (const index of new Set(adjacentIndexes)) {
+      const preload = new window.Image();
+      preload.decoding = "async";
+      preload.src = displayPhoto(activeMemory.photos[index]);
+    }
+  }, [activeMemory.key, activeMemory.photos, activePhotoIndex, visible.memory]);
+
+  useEffect(() => {
     if (volume > 0) lastAudibleVolume.current = volume;
     if (audioRef.current) audioRef.current.volume = volume;
   }, [volume]);
@@ -1615,7 +1630,7 @@ export default function MemoryExperience() {
                 </section>
                 <section className="photo-viewer" aria-label="Fotografias da memória">
                   <div className="photo-frame">
-                    <Image src={displayPhoto(activeMemory.photos[activePhotoIndex])} alt={`${activeMemory.title}, fotografia ${activePhotoIndex + 1}`} fill priority sizes="620px" unoptimized />
+                    <Image key={`${activeMemory.key}-${activePhotoIndex}`} src={displayPhoto(activeMemory.photos[activePhotoIndex])} alt={`${activeMemory.title}, fotografia ${activePhotoIndex + 1}`} fill priority sizes="620px" unoptimized />
                     {activeMemory.photos.length > 1 && <><button type="button" className="photo-arrow photo-arrow--left" onClick={() => movePhoto(-1)} aria-label="Fotografia anterior">‹</button><button type="button" className="photo-arrow photo-arrow--right" onClick={() => movePhoto(1)} aria-label="Próxima fotografia">›</button></>}
                     <span className="photo-counter">FOTO {activePhotoIndex + 1}/{activeMemory.photos.length}</span>
                   </div>

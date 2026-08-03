@@ -185,6 +185,8 @@ test("inclui a fotografia fornecida e as regras locais do calendário", async ()
   assert.match(component, /function chooseSongFromQuickPlayer[\s\S]*setQuickPlayerVisible\(true\)/);
   assert.match(component, /quick-player-drag-handle/);
   assert.match(component, /thumbnailAsset/);
+  assert.match(component, /new window\.Image\(\)/);
+  assert.match(component, /key=\{`\$\{activeMemory\.key\}-\$\{activePhotoIndex\}`\}/);
   assert.match(component, /loadLivingMemories/);
   assert.match(component, /saveLivingMemory/);
   assert.match(component, /Nova memória/);

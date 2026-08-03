@@ -208,6 +208,19 @@ for (const size of sizes) {
   assert.equal(await page.locator(".desktop-dock button").count(), 7, `${size.name}: dock precisa exibir as sete funções do presente`);
 
   const memoryWindow = page.locator(".memory-window");
+  const galleryImage = memoryWindow.locator(".photo-frame img");
+  const firstGallerySource = await galleryImage.getAttribute("src");
+  await memoryWindow.getByRole("button", { name: "Próxima fotografia", exact: true }).click();
+  await memoryWindow.locator(".photo-counter").filter({ hasText: "FOTO 2/4" }).waitFor();
+  assert.notEqual(await galleryImage.getAttribute("src"), firstGallerySource, `${size.name}: seta seguinte não trocou a fotografia`);
+  assert.equal(await memoryWindow.locator(".photo-strip button.is-active").getAttribute("aria-label"), "Abrir fotografia 2", `${size.name}: miniatura ativa não acompanhou a seta seguinte`);
+  await memoryWindow.getByRole("button", { name: "Fotografia anterior", exact: true }).click();
+  await memoryWindow.locator(".photo-counter").filter({ hasText: "FOTO 1/4" }).waitFor();
+  assert.equal(await galleryImage.getAttribute("src"), firstGallerySource, `${size.name}: seta anterior não voltou para a fotografia inicial`);
+  await memoryWindow.getByRole("button", { name: "Abrir fotografia 3", exact: true }).click();
+  await memoryWindow.locator(".photo-counter").filter({ hasText: "FOTO 3/4" }).waitFor();
+  await galleryImage.evaluate((image) => image.decode());
+  assert.equal(await galleryImage.evaluate((image) => image.complete && image.naturalWidth > 0), true, `${size.name}: fotografia escolhida não terminou de carregar`);
   const beforeDrag = await memoryWindow.boundingBox();
   const horizontalBar = await memoryWindow.locator(".window-bar").boundingBox();
   assert.ok(beforeDrag && horizontalBar, `${size.name}: janela principal não pôde ser medida`);
