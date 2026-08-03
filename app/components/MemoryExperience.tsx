@@ -1963,9 +1963,9 @@ export default function MemoryExperience() {
           <button type="button" aria-pressed={visible.memory} onClick={() => toggleWindow("memory")}><span aria-hidden="true">▧</span><strong>Memória</strong></button>
           <button type="button" aria-pressed={visible.archive} onClick={() => toggleWindow("archive")}><span aria-hidden="true">▦</span><strong>Arquivo</strong></button>
           <button type="button" className="dock-heart" onClick={() => chooseSongFromQuickPlayer(4)}><span aria-hidden="true">♡</span><strong>Nossa música</strong></button>
+          <button type="button" className="dock-date" aria-pressed={visible.date} onClick={toggleDateWindow}><span aria-hidden="true">17</span><strong>Encontro</strong></button>
           <button type="button" className="dock-new-memory" aria-pressed={visible.newMemory} onClick={() => toggleWindow("newMemory")}><span aria-hidden="true">＋</span><strong>Nova memória</strong></button>
           <button type="button" aria-pressed={visible.response} onClick={() => toggleWindow("response")}><span aria-hidden="true">✎</span><strong>Responder</strong></button>
-          <button type="button" className="dock-date" aria-pressed={visible.date} onClick={toggleDateWindow}><span aria-hidden="true">17</span><strong>Encontro</strong></button>
         </nav>
       </main>
     </>

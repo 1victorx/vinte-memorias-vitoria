@@ -206,6 +206,8 @@ for (const size of sizes) {
   assert.ok(dockLabelSize >= 11, `${size.name}: rótulos inferiores continuam pequenos`);
   assert.equal(await page.locator(".large-disc").count(), 1, `${size.name}: CD grande do tocador ausente`);
   assert.equal(await page.locator(".desktop-dock button").count(), 7, `${size.name}: dock precisa exibir as sete funções do presente`);
+  const dockOrder = await page.locator(".desktop-dock button").evaluateAll((buttons) => buttons.map((button) => button.querySelector("strong")?.textContent));
+  assert.deepEqual(dockOrder, ["Músicas", "Memória", "Arquivo", "Nossa música", "Encontro", "Nova memória", "Responder"], `${size.name}: ordem dos botões do dock está incorreta`);
 
   const memoryWindow = page.locator(".memory-window");
   const galleryImage = memoryWindow.locator(".photo-frame img");
