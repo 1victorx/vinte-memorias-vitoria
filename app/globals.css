@@ -3652,7 +3652,7 @@ body * {
   inset: 0;
   overflow: hidden;
   pointer-events: none;
-  animation: birthday-scene-life 6.3s ease both;
+  animation: birthday-scene-life 7.3s ease both;
 }
 .birthday-celebration::before {
   position: absolute;
@@ -3670,27 +3670,37 @@ body * {
   position: absolute;
   inset: 0;
 }
+.birthday-confetti-field {
+  perspective: 900px;
+  transform-style: preserve-3d;
+}
 .birthday-confetti {
   position: absolute;
-  top: -28px;
+  top: calc(-1 * var(--party-height) - 18px);
   left: var(--party-left);
-  width: 10px;
-  height: 18px;
-  border: 1px solid rgba(83, 34, 57, .26);
-  border-radius: 2px;
-  background: var(--party-color);
-  box-shadow: 2px 2px 0 rgba(72, 24, 47, .08);
-  animation: birthday-confetti-fall var(--party-duration) cubic-bezier(.16, .65, .38, 1) var(--party-delay) both;
+  width: var(--party-width);
+  height: var(--party-height);
+  border: 1px solid color-mix(in srgb, var(--party-color), #54233a 27%);
+  border-radius: 1px;
+  background:
+    linear-gradient(115deg, rgba(255, 255, 255, .8) 0 10%, transparent 28% 67%, rgba(45, 15, 30, .16) 100%),
+    var(--party-color);
+  box-shadow: 1px 2px 2px rgba(53, 18, 35, .18);
+  filter: saturate(1.08) drop-shadow(0 3px 2px rgba(64, 25, 44, .13));
+  backface-visibility: visible;
+  transform-origin: 50% 45%;
+  will-change: transform, opacity;
+  animation: birthday-confetti-fall var(--party-duration) cubic-bezier(.18, .42, .24, 1) var(--party-delay) both;
 }
 .birthday-confetti--1 {
-  width: 17px;
-  height: 7px;
-  border-radius: 50%;
+  border-radius: 55% 45% 52% 48%;
 }
 .birthday-confetti--2 {
-  width: 12px;
-  height: 12px;
-  border-radius: 50% 2px 50% 2px;
+  border-radius: 50% 3px 50% 3px;
+}
+.birthday-confetti--3 {
+  border-radius: 0;
+  clip-path: polygon(50% 0, 100% 100%, 0 78%);
 }
 .birthday-balloons i {
   position: absolute;
@@ -3759,7 +3769,7 @@ body * {
   box-shadow: 12px 14px 0 rgba(91, 31, 57, .2), 0 28px 70px rgba(55, 17, 35, .32);
   text-align: center;
   transform: translate(-50%, -50%);
-  animation: birthday-message-pop 6.15s cubic-bezier(.2, .82, .2, 1) both;
+  animation: birthday-message-pop 6.8s cubic-bezier(.2, .82, .2, 1) both;
 }
 .birthday-message::before,
 .birthday-message::after {
@@ -3808,9 +3818,24 @@ body * {
   to { filter: saturate(1.18); transform: scale(1.025); }
 }
 @keyframes birthday-confetti-fall {
-  0% { opacity: 0; transform: translate3d(0, -35px, 0) rotate(0); }
-  8% { opacity: 1; }
-  100% { opacity: .95; transform: translate3d(var(--party-drift), calc(100vh + 65px), 0) rotate(var(--party-turn)); }
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -35px, var(--party-depth)) rotateX(0) rotateY(0) rotateZ(0);
+  }
+  5% { opacity: 1; }
+  23% {
+    transform: translate3d(var(--party-sway), 22vh, var(--party-depth)) rotateX(180deg) rotateY(125deg) rotateZ(96deg);
+  }
+  49% {
+    transform: translate3d(var(--party-sway-back), 49vh, 0) rotateX(390deg) rotateY(275deg) rotateZ(245deg);
+  }
+  74% {
+    transform: translate3d(var(--party-sway), 76vh, 0) rotateX(590deg) rotateY(430deg) rotateZ(425deg);
+  }
+  100% {
+    opacity: .96;
+    transform: translate3d(var(--party-drift), calc(100vh + 95px), 0) rotateX(var(--party-turn-x)) rotateY(var(--party-turn-y)) rotateZ(var(--party-turn));
+  }
 }
 @keyframes birthday-balloon-rise {
   0% { opacity: 0; transform: translate3d(0, 0, 0) rotate(-4deg); }
@@ -3844,20 +3869,22 @@ body * {
   100% { opacity: 0; transform: translate(-50%, -52%) scale(.99); }
 }
 @keyframes birthday-confetti-soft {
-  0% { opacity: 0; transform: translateY(-14px) rotate(0); }
-  22%, 74% { opacity: 1; }
-  100% { opacity: 0; transform: translateY(95px) rotate(90deg); }
+  0% { opacity: 0; transform: translate3d(0, -18px, 0) rotate(0); }
+  7% { opacity: 1; }
+  32% { transform: translate3d(var(--party-sway), 31vh, 0) rotate(35deg); }
+  64% { transform: translate3d(var(--party-sway-back), 65vh, 0) rotate(68deg); }
+  100% { opacity: .92; transform: translate3d(var(--party-drift), calc(100vh + 95px), 0) rotate(105deg); }
 }
 @media (prefers-reduced-motion: reduce) {
   .birthday-celebration {
-    animation: birthday-scene-life 4.6s ease both !important;
+    animation: birthday-scene-life 7.3s ease both !important;
   }
   .birthday-message {
-    animation: birthday-message-soft 4.45s ease both !important;
+    animation: birthday-message-soft 6.8s ease both !important;
   }
   .birthday-celebration::before { animation: none !important; }
   .birthday-confetti {
-    animation: birthday-confetti-soft 3.4s ease-out var(--party-delay) both !important;
+    animation: birthday-confetti-soft var(--party-duration) linear var(--party-delay) both !important;
   }
   .birthday-balloons,
   .birthday-fireworks { display: none; }

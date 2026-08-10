@@ -113,17 +113,27 @@ const tutorialSteps: Array<{ target: TutorialTarget; icon: string; title: string
   },
 ];
 
-const birthdayColors = ["#b93870", "#f3a7be", "#f4d47b", "#b9a2dc", "#fff8eb", "#8fcfc2"];
-const birthdayConfetti = Array.from({ length: 64 }, (_, index) => ({
-  id: index,
-  left: (index * 37 + 7) % 100,
-  delay: ((index * 11) % 18) / 10,
-  duration: 3.1 + ((index * 7) % 16) / 10,
-  drift: -110 + ((index * 43) % 220),
-  turn: 270 + ((index * 83) % 720),
-  color: birthdayColors[index % birthdayColors.length],
-  shape: index % 3,
-}));
+const birthdayColors = ["#ad2f67", "#f3a7be", "#e7bd45", "#9d83ca", "#fff4d6", "#69b9a9", "#d65c74", "#8e5c3b"];
+const birthdayConfetti = Array.from({ length: 88 }, (_, index) => {
+  const sway = 45 + ((index * 29) % 125);
+  return {
+    id: index,
+    left: (index * 37 + 7) % 100,
+    delay: ((index * 11) % 13) / 10,
+    duration: 4.8 + ((index * 7) % 12) / 10,
+    drift: -165 + ((index * 43) % 330),
+    sway: index % 2 === 0 ? sway : -sway,
+    swayBack: index % 2 === 0 ? -sway * .72 : sway * .72,
+    depth: -120 + ((index * 47) % 260),
+    turn: 540 + ((index * 83) % 900),
+    turnX: 420 + ((index * 67) % 780),
+    turnY: 360 + ((index * 53) % 720),
+    width: 7 + ((index * 5) % 9),
+    height: 9 + ((index * 7) % 14),
+    color: birthdayColors[index % birthdayColors.length],
+    shape: index % 4,
+  };
+});
 const birthdayBalloons = ["♡", "20", "✿", "♡", "20", "✿"];
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
@@ -573,7 +583,7 @@ export default function MemoryExperience() {
       birthdayStartFrame.current = window.requestAnimationFrame(() => {
         birthdayStartFrame.current = null;
         setBirthdayVisible(true);
-        const duration = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 4700 : 6400;
+        const duration = 7500;
         birthdayTimer.current = window.setTimeout(() => {
           setBirthdayVisible(false);
           birthdayTimer.current = null;
@@ -1679,7 +1689,14 @@ export default function MemoryExperience() {
                     "--party-delay": `${piece.delay}s`,
                     "--party-duration": `${piece.duration}s`,
                     "--party-drift": `${piece.drift}px`,
+                    "--party-sway": `${piece.sway}px`,
+                    "--party-sway-back": `${piece.swayBack}px`,
+                    "--party-depth": `${piece.depth}px`,
                     "--party-turn": `${piece.turn}deg`,
+                    "--party-turn-x": `${piece.turnX}deg`,
+                    "--party-turn-y": `${piece.turnY}deg`,
+                    "--party-width": `${piece.width}px`,
+                    "--party-height": `${piece.height}px`,
                     "--party-color": piece.color,
                   } as CSSProperties}
                 />
