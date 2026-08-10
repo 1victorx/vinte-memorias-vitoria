@@ -1618,8 +1618,6 @@ export default function MemoryExperience() {
                   <p className="file-label">NOSSO_ARQUIVO / {activeMemory.date}</p>
                   <h1>{activeMemory.title}</h1>
                   <p className="memory-lead">{activeMemory.preview}</p>
-                  <p>{activeMemory.story}</p>
-                  {!activeMemory.isLiving && <p className="pending-copy">Este espaço receberá as palavras definitivas do Victor.</p>}
                   {activeMemory.songIndex !== null && <button type="button" className="track-link" onClick={() => chooseSong(activeMemory.songIndex ?? 0)}>♫ ouvir a trilha desta memória</button>}
                   {activeMemory.secret && (
                     <div className={`secret-file${secretOpen ? " is-open" : ""}`}>
