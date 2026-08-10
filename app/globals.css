@@ -3410,3 +3410,238 @@ body * {
 @media (prefers-reduced-motion: reduce) {
   .roulette-spin { transition: none; }
 }
+
+/* Guided gift tutorial */
+.tutorial-overlay {
+  position: absolute;
+  z-index: 440;
+  inset: 0;
+  background: rgba(47, 24, 36, .34);
+  backdrop-filter: blur(2px);
+  animation: tutorial-backdrop-in 280ms ease-out both;
+}
+.tutorial-card {
+  --tutorial-pointer: 0px;
+  position: absolute;
+  bottom: 106px;
+  left: 50%;
+  width: min(720px, calc(100vw - 96px));
+  overflow: visible;
+  border: 2px solid #6f4559;
+  border-radius: 15px 7px 18px 9px;
+  background:
+    radial-gradient(circle at 12% 20%, rgba(239, 172, 193, .22) 0 2px, transparent 3px),
+    linear-gradient(135deg, #fffdf8, #fff5f8);
+  box-shadow: 9px 11px 0 rgba(79, 31, 53, .2), 0 22px 54px rgba(54, 17, 34, .28);
+  color: #3b2630;
+  transform: translateX(-50%);
+  animation: tutorial-card-in 360ms cubic-bezier(.2, .86, .2, 1.12) both;
+}
+.tutorial-card[data-target="music"] { --tutorial-pointer: -294px; }
+.tutorial-card[data-target="memory"] { --tutorial-pointer: -196px; }
+.tutorial-card[data-target="archive"] { --tutorial-pointer: -98px; }
+.tutorial-card[data-target="date"] { --tutorial-pointer: 98px; }
+.tutorial-card[data-target="newMemory"] { --tutorial-pointer: 196px; }
+.tutorial-card[data-target="response"] { --tutorial-pointer: 294px; }
+.tutorial-card::after {
+  position: absolute;
+  bottom: -17px;
+  left: calc(50% + var(--tutorial-pointer));
+  width: 28px;
+  height: 28px;
+  border-right: 2px solid #6f4559;
+  border-bottom: 2px solid #6f4559;
+  background: #fff7f9;
+  content: "";
+  transform: translateX(-50%) rotate(45deg);
+}
+.tutorial-header {
+  display: flex;
+  height: 34px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 9px 0 14px;
+  border-bottom: 1px dashed rgba(111, 69, 89, .42);
+  color: #9a315f;
+  font: 700 10px Georgia, serif;
+  letter-spacing: .13em;
+}
+.tutorial-header button {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid #9b607a;
+  border-radius: 5px 2px 5px 2px;
+  background: #fff;
+  color: #6a2444;
+  font: 700 16px/1 Georgia, serif;
+  cursor: pointer;
+}
+.tutorial-header button:hover,
+.tutorial-header button:focus-visible {
+  background: #efacc1;
+  outline: 2px solid #fff;
+  outline-offset: 1px;
+}
+.tutorial-content {
+  display: grid;
+  min-height: 104px;
+  grid-template-columns: 66px 1fr;
+  align-items: center;
+  gap: 15px;
+  padding: 14px 24px 10px;
+}
+.tutorial-icon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border: 1px solid #8e4566;
+  border-radius: 13px 5px 14px 6px;
+  background: linear-gradient(145deg, #fbd9e3, #efacc1);
+  box-shadow: 4px 5px 0 rgba(115, 44, 75, .16);
+  color: #7e294f;
+  font: 700 27px Georgia, serif;
+}
+.tutorial-content small {
+  color: #a23c68;
+  font: 700 9px Georgia, serif;
+  letter-spacing: .15em;
+}
+.tutorial-content h2 {
+  margin: 3px 0 5px;
+  color: #551a35;
+  font: 700 25px/1 Georgia, serif;
+}
+.tutorial-content p {
+  max-width: 590px;
+  margin: 0;
+  color: #4d3540;
+  font: 15px/1.4 Georgia, serif;
+}
+.tutorial-progress {
+  display: flex;
+  gap: 7px;
+  padding: 0 24px 12px 105px;
+}
+.tutorial-progress i {
+  width: 34px;
+  height: 5px;
+  border: 1px solid #c38ca5;
+  border-radius: 4px 2px 4px 2px;
+  background: #f9e8ed;
+}
+.tutorial-progress i.is-complete { background: #eaa3bb; }
+.tutorial-progress i.is-current {
+  border-color: #762447;
+  background: #b73a70;
+  box-shadow: 0 0 0 2px rgba(183, 58, 112, .14);
+}
+.tutorial-actions {
+  display: flex;
+  min-height: 50px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 8px 14px;
+  border-top: 1px solid rgba(111, 69, 89, .28);
+  background: rgba(251, 229, 236, .68);
+  border-radius: 0 0 16px 7px;
+}
+.tutorial-actions > div { display: flex; gap: 8px; }
+.tutorial-actions button {
+  min-height: 32px;
+  padding: 0 14px;
+  border: 1px solid #8e4566;
+  border-radius: 6px 3px 7px 3px;
+  background: #fffafc;
+  color: #64223f;
+  font: 700 10px Georgia, serif;
+  cursor: pointer;
+}
+.tutorial-actions button:hover,
+.tutorial-actions button:focus-visible {
+  background: #f5c4d2;
+  outline: 2px solid #fff;
+  outline-offset: 1px;
+  transform: translateY(-1px);
+}
+.tutorial-actions button:disabled {
+  opacity: .42;
+  cursor: not-allowed;
+  transform: none;
+}
+.tutorial-actions .tutorial-skip {
+  border-color: transparent;
+  background: transparent;
+  color: #7c5366;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.tutorial-actions .tutorial-next {
+  min-width: 112px;
+  background: #b93870;
+  color: #fff;
+  box-shadow: 2px 3px 0 rgba(80, 25, 50, .2);
+}
+.desktop.is-tutorial-open .desktop-dock {
+  z-index: 450;
+  pointer-events: none;
+}
+.desktop.is-tutorial-open .desktop-dock button {
+  opacity: .34;
+  filter: grayscale(.75);
+}
+.desktop.is-tutorial-open .desktop-dock button.is-tutorial-target {
+  z-index: 2;
+  position: relative;
+  opacity: 1;
+  filter: none;
+  background: #fff7fa;
+  box-shadow: inset 0 0 0 2px #b73a70, 0 0 0 5px rgba(255, 237, 244, .92), 0 10px 24px rgba(75, 24, 47, .32);
+  transform: translateY(-8px) scale(1.06);
+  animation: tutorial-target-pulse 1.2s ease-in-out infinite;
+}
+.desktop.is-tutorial-open .desktop-dock button.is-tutorial-target span {
+  border-color: #8d315a;
+  background: #efacc1;
+  color: #5c1c39;
+  transform: none;
+}
+.desktop.is-tutorial-open .desktop-dock button.is-tutorial-target::after {
+  position: absolute;
+  top: -25px;
+  left: 50%;
+  padding: 3px 7px;
+  border: 1px solid #7f3656;
+  border-radius: 5px 2px 5px 2px;
+  background: #fff8fa;
+  color: #772448;
+  content: "OLHE AQUI";
+  font: 700 8px Georgia, serif;
+  letter-spacing: .08em;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+@keyframes tutorial-backdrop-in { from { opacity: 0; } }
+@keyframes tutorial-card-in {
+  from { opacity: 0; transform: translate(-50%, 16px) scale(.97); }
+}
+@keyframes tutorial-target-pulse {
+  50% { box-shadow: inset 0 0 0 2px #b73a70, 0 0 0 8px rgba(255, 237, 244, .72), 0 13px 28px rgba(75, 24, 47, .38); }
+}
+@media (max-height: 800px) and (min-width: 900px) {
+  .tutorial-card { bottom: 88px; }
+  .tutorial-content { min-height: 88px; padding-top: 10px; padding-bottom: 8px; }
+  .tutorial-icon { width: 50px; height: 50px; font-size: 23px; }
+  .tutorial-content h2 { font-size: 22px; }
+  .tutorial-content p { font-size: 13px; }
+  .tutorial-actions { min-height: 43px; padding-top: 5px; padding-bottom: 5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-overlay,
+  .tutorial-card,
+  .desktop.is-tutorial-open .desktop-dock button.is-tutorial-target { animation: none; }
+  .tutorial-actions button { transition: none; }
+}

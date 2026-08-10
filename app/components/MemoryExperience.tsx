@@ -72,6 +72,46 @@ type DisplayMemory = {
   isLiving: boolean;
 };
 type LivingMemoryStatus = "unconfigured" | "loading" | "ready" | "error";
+type TutorialTarget = "music" | "memory" | "archive" | "date" | "newMemory" | "response";
+
+const tutorialSteps: Array<{ target: TutorialTarget; icon: string; title: string; description: string }> = [
+  {
+    target: "music",
+    icon: "♫",
+    title: "Músicas",
+    description: "Aqui estão as músicas que me fazem lembrar de você — todas falam sobre amor.",
+  },
+  {
+    target: "memory",
+    icon: "▧",
+    title: "Memória",
+    description: "Aqui ficam todas as melhores memórias que vivi com você.",
+  },
+  {
+    target: "archive",
+    icon: "▦",
+    title: "Arquivo",
+    description: "Aqui está uma lista com todas as memórias da janela anterior.",
+  },
+  {
+    target: "date",
+    icon: "17",
+    title: "Encontro",
+    description: "Todas as datas em que saímos e o que fizemos — sim, eu lembro de tudo! Também existe uma roleta para sortear o nosso próximo encontro.",
+  },
+  {
+    target: "newMemory",
+    icon: "＋",
+    title: "Nova memória",
+    description: "Aqui é onde você pode adicionar novas memórias nossas, para que fiquem registradas para sempre.",
+  },
+  {
+    target: "response",
+    icon: "✎",
+    title: "Responder",
+    description: "Aqui é para você descrever o que achou do site.",
+  },
+];
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://1victorx.github.io/vinte-memorias-vitoria/";
@@ -363,6 +403,7 @@ export default function MemoryExperience() {
   const [welcomeVisible, setWelcomeVisible] = useState(true);
   const [welcomeLeaving, setWelcomeLeaving] = useState(false);
   const [welcomeMessage, setWelcomeMessage] = useState("Só existe uma resposta certa...");
+  const [tutorialStep, setTutorialStep] = useState<number | null>(null);
   const [noPosition, setNoPosition] = useState<Point | null>(null);
   const [activeMemoryIndex, setActiveMemoryIndex] = useState(0);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
@@ -434,6 +475,8 @@ export default function MemoryExperience() {
   const lastEscapeTime = useRef(Number.NEGATIVE_INFINITY);
   const escapeCount = useRef(0);
   const welcomeTimer = useRef<number | null>(null);
+  const tutorialCardRef = useRef<HTMLElement>(null);
+  const tutorialNextButtonRef = useRef<HTMLButtonElement>(null);
   const rouletteTimer = useRef<number | null>(null);
   const desktopRef = useRef<HTMLElement>(null);
   const ambienceRef = useRef<HTMLDivElement>(null);
@@ -480,6 +523,7 @@ export default function MemoryExperience() {
   const allDateIdeas = useMemo(() => [...dateIdeas, ...customDateIdeas], [customDateIdeas]);
   const activeMemory = allMemories[Math.min(activeMemoryIndex, allMemories.length - 1)];
   const selectedSong = memories[selectedSongIndex].song;
+  const activeTutorial = tutorialStep === null ? null : tutorialSteps[tutorialStep];
   const daysInCalendarMonth = new Date(calendarMonth.year, calendarMonth.month + 1, 0).getDate();
   const firstCalendarWeekday = new Date(calendarMonth.year, calendarMonth.month, 1).getDay();
   const calendarTitle = new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(new Date(calendarMonth.year, calendarMonth.month, 1));
@@ -500,6 +544,42 @@ export default function MemoryExperience() {
     if (welcomeTimer.current) window.clearTimeout(welcomeTimer.current);
     if (rouletteTimer.current) window.clearTimeout(rouletteTimer.current);
   }, []);
+
+  useEffect(() => {
+    if (tutorialStep === null) return;
+
+    const focusFrame = window.requestAnimationFrame(() => tutorialNextButtonRef.current?.focus());
+    const navigateTutorial = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setTutorialStep(null);
+      } else if (event.key === "Tab") {
+        const buttons = Array.from(tutorialCardRef.current?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? []);
+        const firstButton = buttons[0];
+        const lastButton = buttons.at(-1);
+        if (!firstButton || !lastButton) return;
+        if (event.shiftKey && document.activeElement === firstButton) {
+          event.preventDefault();
+          lastButton.focus();
+        } else if (!event.shiftKey && document.activeElement === lastButton) {
+          event.preventDefault();
+          firstButton.focus();
+        }
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        setTutorialStep((current) => current === null || current >= tutorialSteps.length - 1 ? null : current + 1);
+      } else if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        setTutorialStep((current) => current === null ? null : Math.max(0, current - 1));
+      }
+    };
+
+    window.addEventListener("keydown", navigateTutorial);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      window.removeEventListener("keydown", navigateTutorial);
+    };
+  }, [tutorialStep]);
 
   useEffect(() => {
     const client = getLivingMemoriesClient();
@@ -1422,6 +1502,7 @@ export default function MemoryExperience() {
     if (welcomeTimer.current) window.clearTimeout(welcomeTimer.current);
     welcomeTimer.current = null;
     setWelcomeVisible(false);
+    setTutorialStep((current) => current ?? 0);
   }
 
   function enterGift() {
@@ -1494,7 +1575,7 @@ export default function MemoryExperience() {
         <p>Abra o link em uma tela maior para explorar todas as janelas.</p>
       </div>
 
-      <main ref={desktopRef} className={`desktop${welcomeVisible ? " is-waiting" : " is-revealed"}`} inert={welcomeVisible ? true : undefined} aria-hidden={welcomeVisible} data-interactive={clock !== "--:--"} aria-label="Área de trabalho das nossas memórias">
+      <main ref={desktopRef} className={`desktop${welcomeVisible ? " is-waiting" : " is-revealed"}${activeTutorial ? " is-tutorial-open" : ""}`} inert={welcomeVisible ? true : undefined} aria-hidden={welcomeVisible} data-interactive={clock !== "--:--"} aria-label="Área de trabalho das nossas memórias">
         <audio
           ref={audioRef}
           preload="metadata"
@@ -1502,6 +1583,42 @@ export default function MemoryExperience() {
           onPause={() => setPlaying(false)}
           onEnded={finishSong}
         />
+
+        {activeTutorial && (
+          <section className="tutorial-overlay" role="dialog" aria-modal="true" aria-labelledby="tutorial-title" aria-describedby="tutorial-description">
+            <article ref={tutorialCardRef} className="tutorial-card" data-target={activeTutorial.target}>
+              <header className="tutorial-header">
+                <span>UM GUIA PARA O SEU PRESENTE</span>
+                <button type="button" onClick={() => setTutorialStep(null)} aria-label="Fechar tutorial">×</button>
+              </header>
+              <div className="tutorial-content" aria-live="polite">
+                <span className="tutorial-icon" aria-hidden="true">{activeTutorial.icon}</span>
+                <div>
+                  <small>PASSO {(tutorialStep ?? 0) + 1} DE {tutorialSteps.length}</small>
+                  <h2 id="tutorial-title">{activeTutorial.title}</h2>
+                  <p id="tutorial-description">{activeTutorial.description}</p>
+                </div>
+              </div>
+              <div className="tutorial-progress" aria-hidden="true">
+                {tutorialSteps.map((step, index) => <i key={step.target} className={index === tutorialStep ? "is-current" : index < (tutorialStep ?? 0) ? "is-complete" : ""} />)}
+              </div>
+              <footer className="tutorial-actions">
+                <button type="button" className="tutorial-skip" onClick={() => setTutorialStep(null)}>PULAR TUTORIAL</button>
+                <div>
+                  <button type="button" onClick={() => setTutorialStep((current) => current === null ? null : Math.max(0, current - 1))} disabled={tutorialStep === 0}>← ANTERIOR</button>
+                  <button
+                    ref={tutorialNextButtonRef}
+                    type="button"
+                    className="tutorial-next"
+                    onClick={() => setTutorialStep((current) => current === null || current >= tutorialSteps.length - 1 ? null : current + 1)}
+                  >
+                    {tutorialStep === tutorialSteps.length - 1 ? "COMEÇAR ♡" : "PRÓXIMO →"}
+                  </button>
+                </div>
+              </footer>
+            </article>
+          </section>
+        )}
 
         <div ref={ambienceRef} className="mouse-ambience" aria-hidden="true">
           <span className="mouse-glow" />
@@ -1957,13 +2074,13 @@ export default function MemoryExperience() {
         </section>
 
         <nav className="desktop-dock" aria-label="Aplicativos do presente">
-          <button type="button" aria-pressed={visible.music} onClick={toggleMusicWindow}><span aria-hidden="true">♫</span><strong>Músicas</strong></button>
-          <button type="button" aria-pressed={visible.memory} onClick={() => toggleWindow("memory")}><span aria-hidden="true">▧</span><strong>Memória</strong></button>
-          <button type="button" aria-pressed={visible.archive} onClick={() => toggleWindow("archive")}><span aria-hidden="true">▦</span><strong>Arquivo</strong></button>
+          <button type="button" className={activeTutorial?.target === "music" ? "is-tutorial-target" : undefined} aria-pressed={visible.music} onClick={toggleMusicWindow}><span aria-hidden="true">♫</span><strong>Músicas</strong></button>
+          <button type="button" className={activeTutorial?.target === "memory" ? "is-tutorial-target" : undefined} aria-pressed={visible.memory} onClick={() => toggleWindow("memory")}><span aria-hidden="true">▧</span><strong>Memória</strong></button>
+          <button type="button" className={activeTutorial?.target === "archive" ? "is-tutorial-target" : undefined} aria-pressed={visible.archive} onClick={() => toggleWindow("archive")}><span aria-hidden="true">▦</span><strong>Arquivo</strong></button>
           <button type="button" className="dock-heart" onClick={() => chooseSongFromQuickPlayer(4)}><span aria-hidden="true">♡</span><strong>Nossa música</strong></button>
-          <button type="button" className="dock-date" aria-pressed={visible.date} onClick={toggleDateWindow}><span aria-hidden="true">17</span><strong>Encontro</strong></button>
-          <button type="button" className="dock-new-memory" aria-pressed={visible.newMemory} onClick={() => toggleWindow("newMemory")}><span aria-hidden="true">＋</span><strong>Nova memória</strong></button>
-          <button type="button" aria-pressed={visible.response} onClick={() => toggleWindow("response")}><span aria-hidden="true">✎</span><strong>Responder</strong></button>
+          <button type="button" className={`dock-date${activeTutorial?.target === "date" ? " is-tutorial-target" : ""}`} aria-pressed={visible.date} onClick={toggleDateWindow}><span aria-hidden="true">17</span><strong>Encontro</strong></button>
+          <button type="button" className={`dock-new-memory${activeTutorial?.target === "newMemory" ? " is-tutorial-target" : ""}`} aria-pressed={visible.newMemory} onClick={() => toggleWindow("newMemory")}><span aria-hidden="true">＋</span><strong>Nova memória</strong></button>
+          <button type="button" className={activeTutorial?.target === "response" ? "is-tutorial-target" : undefined} aria-pressed={visible.response} onClick={() => toggleWindow("response")}><span aria-hidden="true">✎</span><strong>Responder</strong></button>
         </nav>
       </main>
     </>
