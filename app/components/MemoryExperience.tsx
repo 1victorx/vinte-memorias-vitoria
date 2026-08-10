@@ -113,6 +113,19 @@ const tutorialSteps: Array<{ target: TutorialTarget; icon: string; title: string
   },
 ];
 
+const birthdayColors = ["#b93870", "#f3a7be", "#f4d47b", "#b9a2dc", "#fff8eb", "#8fcfc2"];
+const birthdayConfetti = Array.from({ length: 64 }, (_, index) => ({
+  id: index,
+  left: (index * 37 + 7) % 100,
+  delay: ((index * 11) % 18) / 10,
+  duration: 3.1 + ((index * 7) % 16) / 10,
+  drift: -110 + ((index * 43) % 220),
+  turn: 270 + ((index * 83) % 720),
+  color: birthdayColors[index % birthdayColors.length],
+  shape: index % 3,
+}));
+const birthdayBalloons = ["♡", "20", "✿", "♡", "20", "✿"];
+
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://1victorx.github.io/vinte-memorias-vitoria/";
 const feedbackEndpoint = process.env.NEXT_PUBLIC_FEEDBACK_ENDPOINT ?? "";
@@ -404,6 +417,7 @@ export default function MemoryExperience() {
   const [welcomeLeaving, setWelcomeLeaving] = useState(false);
   const [welcomeMessage, setWelcomeMessage] = useState("Só existe uma resposta certa...");
   const [tutorialStep, setTutorialStep] = useState<number | null>(null);
+  const [birthdayVisible, setBirthdayVisible] = useState(false);
   const [noPosition, setNoPosition] = useState<Point | null>(null);
   const [activeMemoryIndex, setActiveMemoryIndex] = useState(0);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
@@ -477,6 +491,7 @@ export default function MemoryExperience() {
   const welcomeTimer = useRef<number | null>(null);
   const tutorialCardRef = useRef<HTMLElement>(null);
   const tutorialNextButtonRef = useRef<HTMLButtonElement>(null);
+  const birthdayTimer = useRef<number | null>(null);
   const rouletteTimer = useRef<number | null>(null);
   const desktopRef = useRef<HTMLElement>(null);
   const ambienceRef = useRef<HTMLDivElement>(null);
@@ -542,7 +557,19 @@ export default function MemoryExperience() {
 
   useEffect(() => () => {
     if (welcomeTimer.current) window.clearTimeout(welcomeTimer.current);
+    if (birthdayTimer.current) window.clearTimeout(birthdayTimer.current);
     if (rouletteTimer.current) window.clearTimeout(rouletteTimer.current);
+  }, []);
+
+  const finishTutorial = useCallback(() => {
+    setTutorialStep(null);
+    setBirthdayVisible(true);
+    if (birthdayTimer.current) window.clearTimeout(birthdayTimer.current);
+    const duration = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 2200 : 5600;
+    birthdayTimer.current = window.setTimeout(() => {
+      setBirthdayVisible(false);
+      birthdayTimer.current = null;
+    }, duration);
   }, []);
 
   useEffect(() => {
@@ -552,7 +579,7 @@ export default function MemoryExperience() {
     const navigateTutorial = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        setTutorialStep(null);
+        finishTutorial();
       } else if (event.key === "Tab") {
         const buttons = Array.from(tutorialCardRef.current?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? []);
         const firstButton = buttons[0];
@@ -567,7 +594,8 @@ export default function MemoryExperience() {
         }
       } else if (event.key === "ArrowRight") {
         event.preventDefault();
-        setTutorialStep((current) => current === null || current >= tutorialSteps.length - 1 ? null : current + 1);
+        if (tutorialStep >= tutorialSteps.length - 1) finishTutorial();
+        else setTutorialStep(tutorialStep + 1);
       } else if (event.key === "ArrowLeft") {
         event.preventDefault();
         setTutorialStep((current) => current === null ? null : Math.max(0, current - 1));
@@ -579,7 +607,7 @@ export default function MemoryExperience() {
       window.cancelAnimationFrame(focusFrame);
       window.removeEventListener("keydown", navigateTutorial);
     };
-  }, [tutorialStep]);
+  }, [finishTutorial, tutorialStep]);
 
   useEffect(() => {
     const client = getLivingMemoriesClient();
@@ -1515,6 +1543,15 @@ export default function MemoryExperience() {
     welcomeTimer.current = window.setTimeout(finishWelcomeTransition, 520);
   }
 
+  function advanceTutorial() {
+    if (tutorialStep === null) return;
+    if (tutorialStep >= tutorialSteps.length - 1) {
+      finishTutorial();
+      return;
+    }
+    setTutorialStep(tutorialStep + 1);
+  }
+
   return (
     <>
       {welcomeVisible && (
@@ -1589,7 +1626,7 @@ export default function MemoryExperience() {
             <article ref={tutorialCardRef} className="tutorial-card" data-target={activeTutorial.target}>
               <header className="tutorial-header">
                 <span>UM GUIA PARA O SEU PRESENTE</span>
-                <button type="button" onClick={() => setTutorialStep(null)} aria-label="Fechar tutorial">×</button>
+                <button type="button" onClick={finishTutorial} aria-label="Fechar tutorial e iniciar comemoração">×</button>
               </header>
               <div className="tutorial-content" aria-live="polite">
                 <span className="tutorial-icon" aria-hidden="true">{activeTutorial.icon}</span>
@@ -1603,19 +1640,61 @@ export default function MemoryExperience() {
                 {tutorialSteps.map((step, index) => <i key={step.target} className={index === tutorialStep ? "is-current" : index < (tutorialStep ?? 0) ? "is-complete" : ""} />)}
               </div>
               <footer className="tutorial-actions">
-                <button type="button" className="tutorial-skip" onClick={() => setTutorialStep(null)}>PULAR TUTORIAL</button>
+                <button type="button" className="tutorial-skip" onClick={finishTutorial}>PULAR TUTORIAL</button>
                 <div>
                   <button type="button" onClick={() => setTutorialStep((current) => current === null ? null : Math.max(0, current - 1))} disabled={tutorialStep === 0}>← ANTERIOR</button>
                   <button
                     ref={tutorialNextButtonRef}
                     type="button"
                     className="tutorial-next"
-                    onClick={() => setTutorialStep((current) => current === null || current >= tutorialSteps.length - 1 ? null : current + 1)}
+                    onClick={advanceTutorial}
                   >
                     {tutorialStep === tutorialSteps.length - 1 ? "COMEÇAR ♡" : "PRÓXIMO →"}
                   </button>
                 </div>
               </footer>
+            </article>
+          </section>
+        )}
+
+        {birthdayVisible && (
+          <section className="birthday-celebration" role="status" aria-live="assertive" aria-atomic="true">
+            <div className="birthday-confetti-field" aria-hidden="true">
+              {birthdayConfetti.map((piece) => (
+                <i
+                  key={piece.id}
+                  className={`birthday-confetti birthday-confetti--${piece.shape}`}
+                  style={{
+                    "--party-left": `${piece.left}%`,
+                    "--party-delay": `${piece.delay}s`,
+                    "--party-duration": `${piece.duration}s`,
+                    "--party-drift": `${piece.drift}px`,
+                    "--party-turn": `${piece.turn}deg`,
+                    "--party-color": piece.color,
+                  } as CSSProperties}
+                />
+              ))}
+            </div>
+            <div className="birthday-balloons" aria-hidden="true">
+              {birthdayBalloons.map((label, index) => (
+                <i
+                  key={`${label}-${index}`}
+                  style={{
+                    "--balloon-left": `${7 + index * 17}%`,
+                    "--balloon-delay": `${index * .24}s`,
+                    "--balloon-drift": `${index % 2 === 0 ? 42 : -38}px`,
+                  } as CSSProperties}
+                >
+                  {label}
+                </i>
+              ))}
+            </div>
+            <div className="birthday-fireworks" aria-hidden="true"><i /><i /><i /></div>
+            <article className="birthday-message">
+              <span aria-hidden="true">🎂</span>
+              <small>HOJE É O SEU DIA</small>
+              <h2>Feliz aniversário, meu amor!</h2>
+              <p>Celebrando os seus 20 anos e tudo de lindo que existe em você. ♡</p>
             </article>
           </section>
         )}
