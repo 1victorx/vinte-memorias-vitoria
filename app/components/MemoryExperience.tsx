@@ -492,6 +492,7 @@ export default function MemoryExperience() {
   const tutorialCardRef = useRef<HTMLElement>(null);
   const tutorialNextButtonRef = useRef<HTMLButtonElement>(null);
   const birthdayTimer = useRef<number | null>(null);
+  const birthdayStartFrame = useRef<number | null>(null);
   const rouletteTimer = useRef<number | null>(null);
   const desktopRef = useRef<HTMLElement>(null);
   const ambienceRef = useRef<HTMLDivElement>(null);
@@ -558,18 +559,27 @@ export default function MemoryExperience() {
   useEffect(() => () => {
     if (welcomeTimer.current) window.clearTimeout(welcomeTimer.current);
     if (birthdayTimer.current) window.clearTimeout(birthdayTimer.current);
+    if (birthdayStartFrame.current) window.cancelAnimationFrame(birthdayStartFrame.current);
     if (rouletteTimer.current) window.clearTimeout(rouletteTimer.current);
   }, []);
 
   const finishTutorial = useCallback(() => {
     setTutorialStep(null);
-    setBirthdayVisible(true);
+    setBirthdayVisible(false);
     if (birthdayTimer.current) window.clearTimeout(birthdayTimer.current);
-    const duration = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 2200 : 5600;
-    birthdayTimer.current = window.setTimeout(() => {
-      setBirthdayVisible(false);
-      birthdayTimer.current = null;
-    }, duration);
+    if (birthdayStartFrame.current) window.cancelAnimationFrame(birthdayStartFrame.current);
+
+    birthdayStartFrame.current = window.requestAnimationFrame(() => {
+      birthdayStartFrame.current = window.requestAnimationFrame(() => {
+        birthdayStartFrame.current = null;
+        setBirthdayVisible(true);
+        const duration = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 4700 : 6400;
+        birthdayTimer.current = window.setTimeout(() => {
+          setBirthdayVisible(false);
+          birthdayTimer.current = null;
+        }, duration);
+      });
+    });
   }, []);
 
   useEffect(() => {

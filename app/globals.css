@@ -3652,7 +3652,7 @@ body * {
   inset: 0;
   overflow: hidden;
   pointer-events: none;
-  animation: birthday-scene-life 5.5s ease both;
+  animation: birthday-scene-life 6.3s ease both;
 }
 .birthday-celebration::before {
   position: absolute;
@@ -3759,7 +3759,7 @@ body * {
   box-shadow: 12px 14px 0 rgba(91, 31, 57, .2), 0 28px 70px rgba(55, 17, 35, .32);
   text-align: center;
   transform: translate(-50%, -50%);
-  animation: birthday-message-pop 5.35s cubic-bezier(.2, .82, .2, 1) both;
+  animation: birthday-message-pop 6.15s cubic-bezier(.2, .82, .2, 1) both;
 }
 .birthday-message::before,
 .birthday-message::after {
@@ -3838,11 +3838,27 @@ body * {
   .birthday-message h2 { font-size: 36px; }
   .birthday-message p { font-size: 14px; }
 }
+@keyframes birthday-message-soft {
+  0%, 8% { opacity: 0; transform: translate(-50%, -48%) scale(.98); }
+  18%, 82% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -52%) scale(.99); }
+}
+@keyframes birthday-confetti-soft {
+  0% { opacity: 0; transform: translateY(-14px) rotate(0); }
+  22%, 74% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(95px) rotate(90deg); }
+}
 @media (prefers-reduced-motion: reduce) {
-  .birthday-celebration,
-  .birthday-message,
+  .birthday-celebration {
+    animation: birthday-scene-life 4.6s ease both !important;
+  }
+  .birthday-message {
+    animation: birthday-message-soft 4.45s ease both !important;
+  }
   .birthday-celebration::before { animation: none !important; }
-  .birthday-confetti-field,
+  .birthday-confetti {
+    animation: birthday-confetti-soft 3.4s ease-out var(--party-delay) both !important;
+  }
   .birthday-balloons,
   .birthday-fireworks { display: none; }
 }
