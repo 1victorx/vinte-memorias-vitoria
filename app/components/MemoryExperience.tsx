@@ -24,6 +24,11 @@ import {
   sessionCanEdit,
   type LivingMemoryRecord,
 } from "../lib/living-memories";
+import {
+  loadOnlineEncounters,
+  saveOnlineEncounter,
+  type OnlineEncounterRecord,
+} from "../lib/encounters";
 import GsapRomanticBackground from "./GsapRomanticBackground";
 
 type WindowName = "music" | "memory" | "archive" | "response" | "date" | "newMemory";
@@ -58,6 +63,7 @@ type ScheduledEncounter = {
   outing: string;
   place: string;
   description: string;
+  rouletteIdea?: string | null;
 };
 type DisplayMemory = {
   key: string;
@@ -270,6 +276,23 @@ function readScheduledEncounters(raw: string | null) {
   return records;
 }
 
+function onlineEncounterToScheduled(record: OnlineEncounterRecord): ScheduledEncounter {
+  return {
+    date: record.encounter_date,
+    kind: record.kind,
+    outing: record.outing,
+    place: record.place,
+    description: record.description,
+    rouletteIdea: record.roulette_idea,
+  };
+}
+
+function onlineEncountersToRecord(records: OnlineEncounterRecord[]) {
+  return Object.fromEntries(
+    records.map((record) => [record.encounter_date, onlineEncounterToScheduled(record)]),
+  ) as Record<string, ScheduledEncounter>;
+}
+
 const welcomeMessages = [
   "Essa opção não vale ♡",
   "Tem certeza? O presente está incrível!",
@@ -449,6 +472,9 @@ export default function MemoryExperience() {
   const [rouletteMessage, setRouletteMessage] = useState("");
   const [todayIso, setTodayIso] = useState("");
   const [scheduledEncounters, setScheduledEncounters] = useState<Record<string, ScheduledEncounter>>({});
+  const [encounterSyncStatus, setEncounterSyncStatus] = useState<LivingMemoryStatus>(
+    livingMemoriesConfigured ? "loading" : "unconfigured",
+  );
   const [recordDate, setRecordDate] = useState("");
   const [dateError, setDateError] = useState("");
   const [dateSaving, setDateSaving] = useState(false);
@@ -696,6 +722,57 @@ export default function MemoryExperience() {
     return () => {
       window.clearInterval(timer);
       window.cancelAnimationFrame(storageFrame);
+    };
+  }, []);
+
+  useEffect(() => {
+    const client = getLivingMemoriesClient();
+    if (!client) return;
+
+    let active = true;
+    const syncEncounters = async (uploadLocalRecords: boolean) => {
+      try {
+        const localRecords = readScheduledEncounters(localStorage.getItem(encounterStorageKey));
+        let onlineRecords = await loadOnlineEncounters(client);
+
+        if (uploadLocalRecords) {
+          const onlineDates = new Set(onlineRecords.map((record) => record.encounter_date));
+          const missingLocalRecords = Object.values(localRecords).filter((record) => !onlineDates.has(record.date));
+          if (missingLocalRecords.length) {
+            await Promise.allSettled(missingLocalRecords.map((record) => saveOnlineEncounter(client, {
+              encounter_date: record.date,
+              kind: record.kind,
+              outing: record.outing,
+              place: record.place,
+              description: record.description,
+              roulette_idea: record.rouletteIdea ?? null,
+            })));
+            onlineRecords = await loadOnlineEncounters(client);
+          }
+        }
+
+        if (!active) return;
+        const sharedRecords = onlineEncountersToRecord(onlineRecords);
+        setScheduledEncounters(sharedRecords);
+        localStorage.setItem(encounterStorageKey, JSON.stringify(sharedRecords));
+        setEncounterSyncStatus("ready");
+      } catch {
+        if (!active) return;
+        setEncounterSyncStatus("error");
+      }
+    };
+
+    void syncEncounters(true);
+    const channel = client
+      .channel("scheduled-encounters-public")
+      .on("postgres_changes", { event: "*", schema: "public", table: "scheduled_encounters" }, () => {
+        void syncEncounters(false);
+      })
+      .subscribe();
+
+    return () => {
+      active = false;
+      void client.removeChannel(channel);
     };
   }, []);
 
@@ -1424,7 +1501,7 @@ export default function MemoryExperience() {
     setDateStep("confirm");
   }
 
-  function saveDateRequestLocally(event: FormEvent<HTMLFormElement>) {
+  async function saveDateRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (dateSavingRef.current) return;
     const parsedDate = parseLocalIsoDate(selectedDate);
@@ -1458,31 +1535,65 @@ export default function MemoryExperience() {
       outing,
       place,
       description,
+      rouletteIdea: isPastLocalDate(selectedDate) ? null : rouletteSuggestion?.title ?? null,
     };
-    const nextEncounters = { ...scheduledEncounters, [selectedDate]: encounter };
+
     try {
-      localStorage.setItem(encounterStorageKey, JSON.stringify(nextEncounters));
-      localStorage.setItem("pedido-de-encontro-para-victor", JSON.stringify(encounter));
+      const client = getLivingMemoriesClient();
+      let savedEncounter = encounter;
+
+      if (client) {
+        const onlineRecord = await saveOnlineEncounter(client, {
+          encounter_date: encounter.date,
+          kind: encounter.kind,
+          outing: encounter.outing,
+          place: encounter.place,
+          description: encounter.description,
+          roulette_idea: encounter.rouletteIdea ?? null,
+        });
+        savedEncounter = onlineEncounterToScheduled(onlineRecord);
+        setEncounterSyncStatus("ready");
+      } else if (feedbackEndpoint) {
+        throw new Error("ONLINE_STORAGE_NOT_CONFIGURED");
+      }
+
+      const nextEncounters = { ...scheduledEncounters, [selectedDate]: savedEncounter };
+      try {
+        localStorage.setItem(encounterStorageKey, JSON.stringify(nextEncounters));
+        localStorage.setItem("pedido-de-encontro-para-victor", JSON.stringify(savedEncounter));
+      } catch {
+        // O banco online continua sendo a fonte principal quando o armazenamento local está indisponível.
+      }
       setScheduledEncounters(nextEncounters);
       setDateRequestSaved(true);
       setRecordDate(selectedDate);
+
       if (feedbackEndpoint) {
         form.submit();
         return;
       }
       setDateStep("record");
-    } catch {
+    } catch (error) {
+      const errorCode = error && typeof error === "object" && "code" in error
+        ? String((error as { code?: unknown }).code ?? "")
+        : "";
+      if (errorCode === "23505") {
+        setDateError("Essa data acabou de ser marcada. Volte ao calendário para consultar o encontro.");
+        const client = getLivingMemoriesClient();
+        if (client) {
+          void loadOnlineEncounters(client).then((records) => {
+            setScheduledEncounters(onlineEncountersToRecord(records));
+          }).catch(() => undefined);
+        }
+      } else {
+        setEncounterSyncStatus("error");
+        setDateError("Não foi possível salvar o encontro online. O e-mail não foi enviado; confira a conexão e tente novamente.");
+      }
+    } finally {
       dateSavingRef.current = false;
       setDateSaving(false);
-      setDateError("Não foi possível guardar o encontro neste computador. Tente novamente.");
-    } finally {
-      if (!feedbackEndpoint) {
-        dateSavingRef.current = false;
-        setDateSaving(false);
-      }
     }
   }
-
   const escapeNoButton = useCallback((pointerX: number, pointerY: number) => {
     if (!welcomeVisible || welcomeLeaving || !noButtonRef.current) return;
     const now = performance.now();
@@ -1992,6 +2103,15 @@ export default function MemoryExperience() {
                       <span><i className="legend-planned" aria-hidden="true">●</i> encontro agendado</span>
                       <span><i className="legend-today" aria-hidden="true" /> hoje</span>
                     </div>
+                    <p className={`calendar-sync-status is-${encounterSyncStatus}`} role="status">
+                      {encounterSyncStatus === "ready"
+                        ? "☁ Calendário sincronizado entre vocês"
+                        : encounterSyncStatus === "loading"
+                          ? "☁ Sincronizando encontros..."
+                          : encounterSyncStatus === "error"
+                            ? "⚠ O calendário online está indisponível"
+                            : "▣ Encontros salvos somente neste computador"}
+                    </p>
                     <div className="calendar-weekdays" aria-hidden="true"><span>DOM</span><span>SEG</span><span>TER</span><span>QUA</span><span>QUI</span><span>SEX</span><span>SÁB</span></div>
                     <div className="calendar-grid" role="grid" aria-label={`Calendário de ${calendarTitle}`}>
                       {Array.from({ length: firstCalendarWeekday }, (_, index) => <span className="calendar-empty" key={`empty-${index}`} />)}
@@ -2137,7 +2257,7 @@ export default function MemoryExperience() {
                 )}
 
                 {dateStep === "details" && (
-                  <form className="date-details" action={feedbackEndpoint || undefined} method="POST" onSubmit={saveDateRequestLocally} aria-busy={dateSaving}>
+                  <form className="date-details" action={feedbackEndpoint || undefined} method="POST" onSubmit={saveDateRequest} aria-busy={dateSaving}>
                     <input type="hidden" name="_subject" value={isPastLocalDate(selectedDate) ? "Vitória registrou um encontro que vocês viveram ♡" : "Vitória escolheu uma data para sair com você ♡"} />
                     <input type="hidden" name="_template" value="table" />
                     <input type="hidden" name="_next" value={`${siteUrl}#encontro-enviado`} />
