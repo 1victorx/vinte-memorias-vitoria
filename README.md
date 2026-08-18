@@ -7,7 +7,8 @@ memória, mensagens escondidas e um calendário de encontros.
 O site foi criado exclusivamente para computadores, como uma área de trabalho
 romântica inspirada em interfaces antigas, e é publicado gratuitamente pelo GitHub Pages.
 
-##Link
+## Link
+
 https://1victorx.github.io/vinte-memorias-vitoria/
 
 ## Funcionalidades
