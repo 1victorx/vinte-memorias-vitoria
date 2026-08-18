@@ -58,6 +58,19 @@ export const viewport: Viewport = {
   colorScheme: "light",
 };
 
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "form-action 'self' https://formsubmit.co",
+  "frame-ancestors 'none'",
+  "img-src 'self' https://*.supabase.co data: blob:",
+  "media-src 'self'",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "object-src 'none'",
+].join("; ");
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -65,6 +78,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
+      <head>
+        <meta httpEquiv="Content-Security-Policy" content={contentSecurityPolicy} />
+        <meta name="referrer" content="strict-origin-when-cross-origin" />
+      </head>
       <body>{children}</body>
     </html>
   );

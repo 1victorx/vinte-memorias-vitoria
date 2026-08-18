@@ -1577,6 +1577,9 @@ export default function MemoryExperience() {
       const errorCode = error && typeof error === "object" && "code" in error
         ? String((error as { code?: unknown }).code ?? "")
         : "";
+      const errorMessage = error && typeof error === "object" && "message" in error
+        ? String((error as { message?: unknown }).message ?? "")
+        : "";
       if (errorCode === "23505") {
         setDateError("Essa data acabou de ser marcada. Volte ao calendário para consultar o encontro.");
         const client = getLivingMemoriesClient();
@@ -1585,6 +1588,9 @@ export default function MemoryExperience() {
             setScheduledEncounters(onlineEncountersToRecord(records));
           }).catch(() => undefined);
         }
+      } else if (errorMessage.includes("encounter_rate_limit_exceeded")) {
+        setEncounterSyncStatus("error");
+        setDateError("Muitos pedidos de encontro em pouco tempo. Aguarde cerca de uma hora e tente novamente.");
       } else {
         setEncounterSyncStatus("error");
         setDateError("Não foi possível salvar o encontro online. O e-mail não foi enviado; confira a conexão e tente novamente.");

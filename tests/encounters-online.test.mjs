@@ -26,3 +26,24 @@ test("sincroniza os encontros pelo Supabase antes de enviar o e-mail", async () 
   assert.match(migration, /date '2026-11-02'/);
   assert.match(migration, /supabase_realtime/);
 });
+
+test("endurece encontros e remoção de fotos após auditoria", async () => {
+  const migration = await readFile(
+    new URL("../supabase/migrations/202608180001_security_hardening.sql", import.meta.url),
+    "utf8",
+  );
+  const layout = await readFile(
+    new URL("../app/layout.tsx", import.meta.url),
+    "utf8",
+  );
+  const component = await readFile(
+    new URL("../app/components/MemoryExperience.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(migration, /enforce_encounter_insert_rate_limit/);
+  assert.match(migration, /encounter_rate_limit_exceeded/);
+  assert.match(migration, /storage\.foldername\(name\)\)\[1\] = auth\.uid\(\)::text/);
+  assert.match(layout, /Content-Security-Policy/);
+  assert.match(component, /encounter_rate_limit_exceeded/);
+});
